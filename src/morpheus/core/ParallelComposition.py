@@ -35,7 +35,10 @@ class ParallelComposition(object):
         s_weights = [t_weight for t_idx, t_weight in enumerate(self.targ_weights)
                      if self.targ_types[t_idx] == "nominal"]
 
-        for e in self.estimators_:
+        relevant_estimators = [e for e in self.estimators_
+                               if hasattr(e, "predict_proba")]
+
+        for e in relevant_estimators:
             e_proba = self._predict_proba_estimator_tidy(e, X, **kwargs)
             s_proba = self._add_proba_estimator(e, e_proba, s_proba)
 
@@ -86,9 +89,10 @@ class ParallelComposition(object):
         self.estimators_.append(e)
 
         self._add_ids_estimator(e)
+        self._update_targ_types()
+        self._update_nominal_numeric_targ_ids()
 
         self._update_classes_()
-        self._update_targ_types()
         self._update_targ_weights()
 
         self._update_n_classes_()
@@ -100,10 +104,17 @@ class ParallelComposition(object):
     # Updates (i.e., recalculate)
     def _update_classes_(self):
         # Re-initialize (easier)
-        self.classes_ = [np.array([])] * len(self.targ_ids)
+        self.classes_ = [np.array([])] * len(self.nominal_targ_ids)
 
         for e in self.estimators_:
             self._add_classes_estimator(e)
+        return
+
+    def _update_nominal_numeric_targ_ids(self):
+        self.nominal_targ_ids = [t for t_idx, t in enumerate(self.targ_ids)
+                                 if self.targ_types[t_idx] == 'nominal']
+        self.numeric_targ_ids = [t for t_idx, t in enumerate(self.targ_ids)
+                                 if self.targ_types[t_idx] == 'numeric']
         return
 
     def _update_targ_weights(self):
@@ -174,7 +185,7 @@ class ParallelComposition(object):
 
     def _add_classes_estimator(self, e):
 
-        idx_map = self._map_elements_idx(e.targ_ids, self.targ_ids)
+        idx_map = self._map_elements_idx(e.targ_ids, self.nominal_targ_ids)
 
         def combine(classes_1, classes_2):
             return np.unique(np.concatenate((classes_1, classes_2)))
@@ -257,6 +268,7 @@ class ParallelComposition(object):
 
     @staticmethod
     def _classes_estimator_tidy(e):
+
         e_classes_ = e.classes_
 
         # undo sklearn convention from hell
