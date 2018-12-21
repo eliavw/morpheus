@@ -28,28 +28,64 @@ class ParallelComposition(object):
     def fit(self, X, Y, **kwargs):
         return
 
-    def predict_proba(self, X, **kwargs):
+    def predict_nominal(self, X, **kwargs):
         n_rows, n_atts = X.shape
 
-        s_proba = [np.zeros((n_rows, n_clas)) for n_clas in self.n_classes_]
+        s_nominal = [np.zeros((n_rows, n_clas)) for n_clas in self.n_classes_]
         s_weights = [t_weight for t_idx, t_weight in enumerate(self.targ_weights)
                      if self.targ_types[t_idx] == "nominal"]
 
-        relevant_estimators = [e for e in self.estimators_
-                               if hasattr(e, "predict_proba")]
+        def is_relevant(e):
+            return (np.intersect1d(e.targ_ids, self.nominal_targ_ids).shape[0] > 0)
+
+        relevant_estimators = [e for e in self.estimators_ if is_relevant(e)]
 
         for e in relevant_estimators:
-            e_proba = self._predict_proba_estimator_tidy(e, X, **kwargs)
-            s_proba = self._add_proba_estimator(e, e_proba, s_proba)
+            e_nominal = self._predict_nominal_estimator_tidy(e, X, **kwargs)
+            s_nominal = self._add_nominal_estimator(e, e_nominal, s_nominal)
 
-        s_proba = [s_proba[t_idx]/s_weights[t_idx]
-                   for t_idx in range(len(s_proba))]
+        # Normalize
+        s_nominal = [s_nominal[t_idx]/s_weights[t_idx]
+                     for t_idx in range(len(self.nominal_targ_ids))]
 
         # redo sklearn convention from hell
-        if len(s_proba) == 1:
-            return s_proba[0]
+        if len(s_nominal) == 1:
+            return s_nominal[0]
         else:
-            return s_proba
+            return s_nominal
+
+    def predict_numeric(self, X, **kwargs):
+        n_rows, n_atts = X.shape
+
+        s_numeric = np.zeros((n_rows, len(self.numeric_targ_ids)))
+        s_weights = [t_weight for t_idx, t_weight in enumerate(self.targ_weights)
+                     if self.targ_types[t_idx] == "numeric"]
+
+        def is_relevant(e):
+            return (np.intersect1d(e.targ_ids, self.numeric_targ_ids).shape[0] > 0)
+
+        relevant_estimators = [e for e in self.estimators_ if is_relevant(e)]
+
+        for e in relevant_estimators:
+            e_numeric = self._predict_numeric_estimator_tidy(e, X, **kwargs)
+            s_numeric = self._add_numeric_estimator(e, e_numeric, s_numeric)
+
+        msg = """
+        s_numeric.shape:    {}
+        """.format(s_numeric.shape)
+        debug_print(msg, V=VERBOSITY)
+
+        # Normalize
+        s_numeric /= s_weights
+
+        # redo sklearn convention from hell
+        if s_numeric.shape[1] == 1:
+            return s_numeric.ravel()
+        else:
+            return s_numeric
+
+    def predict_proba(self, X, **kwargs):
+        return self.predict_nominal(X, **kwargs)
 
     def predict(self, X, **kwargs):
         nb_rows, nb_atts = X.shape
@@ -206,9 +242,9 @@ class ParallelComposition(object):
 
         return
 
-    def _add_proba_estimator(self, e, e_proba, s_proba):
+    def _add_nominal_estimator(self, e, e_nominal, s_nominal):
 
-        t_idx_map = self._map_elements_idx(e.targ_ids, self.targ_ids)
+        t_idx_map = self._map_elements_idx(e.targ_ids, self.nominal_targ_ids)
 
         for t_idx_e, t_idx_s in t_idx_map:  # `s` stands for `self`
 
@@ -232,9 +268,24 @@ class ParallelComposition(object):
             """.format(t_idx_e, t_idx_s, l_idx_e, l_idx_s)
             debug_print(msg, V=VERBOSITY)
 
-            s_proba[t_idx_s][:, l_idx_s] += e_proba[t_idx_e][:, l_idx_e]
+            s_nominal[t_idx_s][:, l_idx_s] += e_nominal[t_idx_e][:, l_idx_e]
 
-        return s_proba
+        return s_nominal
+
+    def _add_numeric_estimator(self, e, e_numeric, s_numeric):
+
+        t_idx_map = self._map_elements_idx(e.targ_ids, self.numeric_targ_ids)
+        t_idx_map = np.atleast_2d(np.array(t_idx_map))
+        t_idx_e, t_idx_s = t_idx_map[:, 0], t_idx_map[:, 1]
+
+        msg = """
+        t_idx_e, t_idx_s:    {}, {}
+        """.format(t_idx_e, t_idx_s)
+        debug_print(msg, V=VERBOSITY)
+
+        s_numeric[:, t_idx_s] += e_numeric[:, t_idx_e]
+
+        return s_numeric
 
     # Utilities - Estimators
     @staticmethod
@@ -248,23 +299,49 @@ class ParallelComposition(object):
         return np.atleast_2d(e_pred)
 
     @staticmethod
-    def _predict_proba_estimator_tidy(e, X, **kwargs):
+    def _predict_nominal_estimator_tidy(e, X, **kwargs):
         """
         Ensure it is returned as a list.
         """
-        e_proba = e.predict_proba(X, **kwargs)
+        e_nominal = e.predict_proba(X, **kwargs)
 
         # undo sklearn convention from hell
-        if isinstance(e_proba, np.ndarray):
-            return [e_proba]
-        elif isinstance(e_proba, list):
-            return e_proba
+        if isinstance(e_nominal, np.ndarray):
+            return [e_nominal]
+        elif isinstance(e_nominal, list):
+            return e_nominal
         else:
             msg = """
-            e_proba has to be (np.ndarray, list),
+            e_nominal has to be (np.ndarray, list),
             instead the type was:   {}
-            """.format(type(e_proba))
+            """.format(type(e_nominal))
             raise TypeError(msg)
+
+    @staticmethod
+    def _predict_numeric_estimator_tidy(e, X, **kwargs):
+        """
+        Ensure it is returned as a list.
+        """
+        if hasattr(e, "predict_numeric"):
+            # Own model => No problem
+            e_numeric = e.predict_numeric(X, **kwargs)
+        elif not hasattr(e, "classes_"):
+            # Sklearn regressor => Also alright
+            e_numeric = e.predict(X, **kwargs)
+        else:
+            msg = """
+            No idea what kind of regressor you passed but computer says no.
+            Either pure regressor (sklearn-like, no classes_ attribute), or 
+            something that obeys MERCS' conventions and therefore has a
+            predict_numeric method.
+            
+            So, either it is pure, or there is clarity;
+            otherwise we cannot handle mixtures recursively.
+            """
+            raise TypeError(msg)
+
+        # undo sklearn convention from hell
+        return np.atleast_2d(e_numeric)
 
     @staticmethod
     def _classes_estimator_tidy(e):
