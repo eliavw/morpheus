@@ -28,34 +28,7 @@ class Composition(object):
     def fit(self, X, Y, **kwargs):
         return
 
-    def predict(self, X, **kwargs):
-        nb_rows, nb_atts = X.shape
 
-        s_pred = np.zeros((nb_rows, self.n_outputs_))
-
-        # Fill in numeric
-        t_idx_map_numeric = self._map_elements_idx(self.numeric_targ_ids, self.targ_ids, return_array=True)
-        t_idx_numeric, t_idx_s_numeric = t_idx_map_numeric[:, 0], t_idx_map_numeric[:, 1]
-
-        s_numeric = self._predict_numeric_estimator_tidy(self, X, **kwargs)
-
-        s_pred[:, t_idx_s_numeric] = s_numeric[:, t_idx_numeric]
-
-        # Fill in nominal
-        t_idx_map_nominal = self._map_elements_idx(self.nominal_targ_ids, self.targ_ids)
-
-        s_nominal_proba = self._predict_nominal_estimator_tidy(self, X, **kwargs)
-
-        for t_idx_nominal, t_idx_s_nominal in t_idx_map_nominal:
-            s_pred[:, t_idx_s_nominal] = self.classes_[t_idx_nominal].take(np.argmax(s_nominal_proba[t_idx_nominal],
-                                                                                     axis=1),
-                                                                           axis=0)
-
-        # redo sklearn convention from hell
-        if s_pred.shape[1] == 1:
-            return s_pred.ravel()
-        else:
-            return s_pred
 
     def predict_proba(self, X, **kwargs):
         return self.predict_nominal(X, **kwargs)
