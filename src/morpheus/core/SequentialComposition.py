@@ -139,14 +139,57 @@ class SequentialComposition(Composition):
             return s_nominal
 
     # Add (i.e., incremental update)
-    def _add_estimator(self, e):
+    def _add_estimator(self, e, location='out'):
+
+        def check_connection(model_a, model_b):
+            connecting_attributes = np.intersect1d(model_a.targ_ids, model_b.desc_ids)
+            msg = """
+            Connecting attributes:  {}
+            """.format(connecting_attributes)
+            debug_print(msg, V=VERBOSITY)
+            return connecting_attributes.size > 0
 
         if len(self.estimators_) == 0:
             # No estimator yet, everything is OK.
-            self.estimators_.append(e)
-        elif np.intersect1d(self.targ_ids, e.desc_ids).size != 0:
-            # New estimator connects to outputs of previous estimator
-            self.estimators_.append(e)
+            self.estimators_.insert(0, e)
+        elif location in {'out', 'output', 'append', 'back', 'end'}:
+            msg = """
+            Trying to add a model to end of the chain.
+            
+            Current chain targ_ids:     {}
+            New estimator desc_ids:     {}
+            """.format(self.targ_ids, e.desc_ids)
+            debug_print(msg, V=VERBOSITY)
+
+            if check_connection(self, e):
+                self.estimators_.append(e)
+            else:
+                msg = """
+                Failed to connect the new estimator to the existing chain.
+                
+                Current chain has target attributes:        {}
+                New estimator has descriptive attributes:   {}
+                
+                Since you decided to add this estimator to the end of the 
+                current chain, there should be an overlap between the two
+                in order to connect them. This is not the case.
+                """.format(self.targ_ids, e.desc_ids)
+                raise ValueError(msg)
+        elif location in {'in', 'input', 'prepend', 'front', 'begin'}:
+            if check_connection(e, self):
+                self.estimators_.insert(0, e)
+            else:
+                msg = """
+                Failed to connect the new estimator to the existing chain.
+
+                New estimator has target attributes:        {}
+                Current chain has descriptive attributes:   {}
+                
+                Since you decided to add this estimator to the beginning of the 
+                current chain, there should be an overlap between the two
+                in order to connect them. This is not the case.
+                """.format(e.desc_ids, self.targ_ids)
+                raise ValueError(msg)
         else:
             msg = """
             An estimator can only be added to a sequential composition if at 
@@ -171,4 +214,3 @@ class SequentialComposition(Composition):
         self.desc_ids = self.desc_ids[~np.in1d(self.desc_ids, conn_ids)]
         self.targ_ids = self.targ_ids[~np.in1d(self.targ_ids, conn_ids)]
         return
-

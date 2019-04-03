@@ -28,13 +28,11 @@ class Composition(object):
     def fit(self, X, Y, **kwargs):
         return
 
-
-
     def predict_proba(self, X, **kwargs):
         return self.predict_nominal(X, **kwargs)
 
-    def add_estimator(self, e):
-        self._add_estimator(e)
+    def add_estimator(self, e, **kwargs):
+        self._add_estimator(e, **kwargs)
         self._add_ids_estimator(e)
 
         self._update_targ_types()

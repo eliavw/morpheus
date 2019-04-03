@@ -109,7 +109,7 @@ class ParallelComposition(Composition):
             return s_numeric
 
     # Add (i.e., incremental update)
-    def _add_estimator(self, e):
+    def _add_estimator(self, e, **kwargs):
         self.estimators_.append(e)
         return
 
