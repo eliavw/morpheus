@@ -1,0 +1,20 @@
+strict digraph  {
+"d-0000" [bipartite=data, idx=0];
+"d-0001" [bipartite=data, idx=1];
+"d-0002" [bipartite=data, idx=2];
+"d-0004" [bipartite=data, idx=4];
+"d-0005" [bipartite=data, idx=5];
+"f-0001" [bipartite=func, idx=1, mod="RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,\n           max_features='auto', max_leaf_nodes=None,\n           min_impurity_decrease=0.0, min_impurity_split=None,\n           min_samples_leaf=1, min_samples_split=2,\n           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n           oob_score=False, random_state=None, verbose=0, warm_start=False)"];
+"d-0007" [bipartite=data, idx=7];
+"f-0002" [bipartite=func, idx=2, mod="RandomForestClassifier(bootstrap=True, class_weight=None, criterion='gini',\n            max_depth=5, max_features='auto', max_leaf_nodes=None,\n            min_impurity_decrease=0.0, min_impurity_split=None,\n            min_samples_leaf=1, min_samples_split=2,\n            min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n            oob_score=False, random_state=None, verbose=0,\n            warm_start=False)"];
+"d-0000" -> "f-0001"  [idx=0];
+"d-0001" -> "f-0001"  [idx=1];
+"d-0001" -> "f-0002"  [idx=1];
+"d-0002" -> "f-0001"  [idx=2];
+"d-0002" -> "f-0002"  [idx=2];
+"d-0005" -> "f-0002"  [idx=5];
+"f-0001" -> "d-0004"  [idx=4];
+"f-0001" -> "d-0005"  [idx=5];
+"f-0002" -> "d-0007"  [idx=7];
+}
+

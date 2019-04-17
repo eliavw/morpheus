@@ -1,0 +1,28 @@
+strict digraph  {
+rankdir=BT;
+splines=ortho;
+"d-0000" [bipartite=data, idx=0, shape="circle"];
+"d-0001" [bipartite=data, idx=1, shape="circle"];
+"d-0002" [bipartite=data, idx=2, shape="circle"];
+"f-0001" [bipartite=func, idx=1, mod="RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,\n           max_features='auto', max_leaf_nodes=None,\n           min_impurity_decrease=0.0, min_impurity_split=None,\n           min_samples_leaf=1, min_samples_split=2,\n           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n           oob_score=False, random_state=None, verbose=0, warm_start=False)", shape="square", width="2.5"];
+"d-0003" [bipartite=data, idx=3, shape="circle"];
+"f-0002" [bipartite=func, idx=2, mod="RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,\n           max_features='auto', max_leaf_nodes=None,\n           min_impurity_decrease=0.0, min_impurity_split=None,\n           min_samples_leaf=1, min_samples_split=2,\n           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n           oob_score=False, random_state=None, verbose=0, warm_start=False)", shape="square", width="2.5"];
+"f-0003" [bipartite=func, idx=3, mod="RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,\n           max_features='auto', max_leaf_nodes=None,\n           min_impurity_decrease=0.0, min_impurity_split=None,\n           min_samples_leaf=1, min_samples_split=2,\n           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n           oob_score=False, random_state=None, verbose=0, warm_start=False)", shape="square", width="2.5"];
+"merge-d-0005" [bipartite=data, idx=5, shape="circle"];
+"merge-d-0004" [bipartite=data, idx=4, shape="circle"];
+"d-0000" -> "f-0001"  [idx=0];
+"d-0000" -> "f-0002"  [idx=0];
+"d-0000" -> "f-0003"  [idx=0];
+"d-0001" -> "f-0001"  [idx=1];
+"d-0001" -> "f-0002"  [idx=1];
+"d-0001" -> "f-0003"  [idx=1];
+"d-0002" -> "f-0001"  [idx=2];
+"f-0001" -> "merge-d-0005"  [idx=5];
+"d-0003" -> "f-0002"  [idx=3];
+"d-0003" -> "f-0003"  [idx=3];
+"f-0002" -> "merge-d-0005"  [idx=5];
+"f-0002" -> "merge-d-0004"  [idx=4];
+"f-0003" -> "merge-d-0005"  [idx=5];
+"f-0003" -> "merge-d-0004"  [idx=4];
+}
+

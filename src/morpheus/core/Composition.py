@@ -13,6 +13,9 @@ class Composition(object):
         self.desc_ids = np.array([])
         self.targ_ids = np.array([])
 
+        self.src_ids = self.desc_ids  # Redundant, but I use both notations
+        self.tgt_ids = self.targ_ids  # Redundant, but I use both notations
+
         self.classes_ = [np.array([])]
 
         self.n_classes_ = [-1]
@@ -55,8 +58,9 @@ class Composition(object):
         ## Estimators
         Estimators used:        {}
         N_estimators:           {}
-        """.format(estimators_used,
-                   len(estimators_used))
+        """.format(
+            estimators_used, len(estimators_used)
+        )
 
         attr_summary = """
         # Main
@@ -71,12 +75,14 @@ class Composition(object):
         ## Weights
         Total weights of target attributes:         {}
 
-        """.format(self.desc_ids,
-                   self.targ_ids,
-                   self.targ_types,
-                   self.n_classes_,
-                   self.classes_,
-                   self.targ_weights)
+        """.format(
+            self.desc_ids,
+            self.targ_ids,
+            self.targ_types,
+            self.n_classes_,
+            self.classes_,
+            self.targ_weights,
+        )
 
         print(attr_summary, estimator_summary)
         return
@@ -92,10 +98,16 @@ class Composition(object):
         return
 
     def _update_nominal_numeric_targ_ids(self):
-        self.nominal_targ_ids = [t for t_idx, t in enumerate(self.targ_ids)
-                                 if self.targ_types[t_idx] == 'nominal']
-        self.numeric_targ_ids = [t for t_idx, t in enumerate(self.targ_ids)
-                                 if self.targ_types[t_idx] == 'numeric']
+        self.nominal_targ_ids = [
+            t
+            for t_idx, t in enumerate(self.targ_ids)
+            if self.targ_types[t_idx] == "nominal"
+        ]
+        self.numeric_targ_ids = [
+            t
+            for t_idx, t in enumerate(self.targ_ids)
+            if self.targ_types[t_idx] == "numeric"
+        ]
         return
 
     def _update_classes_(self):
@@ -119,7 +131,7 @@ class Composition(object):
         """
 
         # Re-initialize (easier)
-        self.targ_weights = np.zeros((len(self.targ_ids, )))
+        self.targ_weights = np.zeros((len(self.targ_ids)))
 
         for e in self.estimators_:
             self._add_targ_weights_estimator(e)
@@ -184,7 +196,9 @@ class Composition(object):
             s_classes:          {}
 
             type(e), type(s):   {}, {}
-            """.format(e_classes_, s_classes_, type(e_classes_), type(s_classes_))
+            """.format(
+                e_classes_, s_classes_, type(e_classes_), type(s_classes_)
+            )
             debug_print(msg, V=VERBOSITY)
 
             self.classes_[idx_s] = combine(e_classes_, s_classes_)
@@ -206,7 +220,9 @@ class Composition(object):
             msg = """
             Weights has to be of type (None, int, float or list)
             Instead, we got: {}, {}
-            """.format(weights, type(weights))
+            """.format(
+                weights, type(weights)
+            )
             ValueError(msg)
 
         for t_idx_e, t_idx_s in t_idx_map:  # `s` stands for `self`
@@ -223,11 +239,15 @@ class Composition(object):
             t_classes_e = self._classes_estimator_tidy(e)[t_idx_e]
             t_classes_s = self.classes_[t_idx_s]
 
-            l_idx_map = self._map_elements_idx(t_classes_e, t_classes_s, return_array=True) # Labels map
+            l_idx_map = self._map_elements_idx(
+                t_classes_e, t_classes_s, return_array=True
+            )  # Labels map
 
             msg = """
             l_idx_map:  {}
-            """.format(l_idx_map)
+            """.format(
+                l_idx_map
+            )
             debug_print(msg, V=VERBOSITY)
 
             l_idx_e, l_idx_s = l_idx_map[:, 0], l_idx_map[:, 1]
@@ -235,7 +255,9 @@ class Composition(object):
             msg = """
             t_idx_e, t_idx_s: {}, {}
             l_idx_e, l_idx_s: {}, {}
-            """.format(t_idx_e, t_idx_s, l_idx_e, l_idx_s)
+            """.format(
+                t_idx_e, t_idx_s, l_idx_e, l_idx_s
+            )
             debug_print(msg, V=VERBOSITY)
 
             s_nominal[t_idx_s][:, l_idx_s] += e_nominal[t_idx_e][:, l_idx_e]
@@ -244,12 +266,16 @@ class Composition(object):
 
     def _add_numeric_estimator_outcomes(self, e, e_numeric, s_numeric):
 
-        t_idx_map = self._map_elements_idx(e.targ_ids, self.numeric_targ_ids, return_array=True)
+        t_idx_map = self._map_elements_idx(
+            e.targ_ids, self.numeric_targ_ids, return_array=True
+        )
         t_idx_e, t_idx_s = t_idx_map[:, 0], t_idx_map[:, 1]
 
         msg = """
         t_idx_e, t_idx_s:    {}, {}
-        """.format(t_idx_e, t_idx_s)
+        """.format(
+            t_idx_e, t_idx_s
+        )
         debug_print(msg, V=VERBOSITY)
 
         s_numeric[:, t_idx_s] += e_numeric[:, t_idx_e]
@@ -263,7 +289,9 @@ class Composition(object):
 
         msg = """
         t_idx_e, t_idx_s:    {}, {}
-        """.format(t_idx_e, t_idx_s)
+        """.format(
+            t_idx_e, t_idx_s
+        )
         debug_print(msg, V=VERBOSITY)
 
         s_outcome[:, t_idx_s] += e_outcome[:, t_idx_e]
@@ -311,7 +339,9 @@ class Composition(object):
             msg = """
             e_nominal has to be (np.ndarray, list),
             instead the type was:   {}
-            """.format(type(e_nominal))
+            """.format(
+                type(e_nominal)
+            )
             raise TypeError(msg)
 
     @staticmethod
@@ -365,7 +395,9 @@ class Composition(object):
             msg = """
             e_classes_ has to be (np.ndarray, list),
             instead the type was:   {}
-            """.format(type(e_classes_))
+            """.format(
+                type(e_classes_)
+            )
             raise TypeError(msg)
 
     @staticmethod
@@ -376,15 +408,17 @@ class Composition(object):
             targ_types = e.targ_types
         elif hasattr(e, "classes_"):
             # Sklearn + Classes => All nominal
-            targ_types = ['nominal'] * e.n_outputs_
+            targ_types = ["nominal"] * e.n_outputs_
         elif not hasattr(e, "classes_"):
             # Sklearn + ~Classes => All numeric
-            targ_types = ['numeric'] * e.n_outputs_
+            targ_types = ["numeric"] * e.n_outputs_
         else:
             msg = """
             Cannot handle what was passed. This method either takes
             a pure sklearn or a MERCS estimator.
-            """.format(e)
+            """.format(
+                e
+            )
             TypeError(e)
 
         return targ_types
