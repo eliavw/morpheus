@@ -1,6 +1,7 @@
 
 # Out dir is custom to your own scripts.
 out/
+*/tmp/ # tmp files
 
 # Stupid directories from IDE, python, notebooks
 .idea/
