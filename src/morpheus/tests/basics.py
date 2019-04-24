@@ -8,7 +8,7 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
 
-def default_dataset():
+def default_dataset(random_state=997):
     """
     Generate a dataset to be used in tests.
 
@@ -25,7 +25,7 @@ def default_dataset():
     )
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=997
+        X, y, test_size=0.2, random_state=random_state
     )
 
     train = pd.DataFrame(X_train)
@@ -37,7 +37,7 @@ def default_dataset():
     return train, test
 
 
-def default_chain():
+def default_chain(random_state=997):
     """
     Default classifier chain.
 
@@ -46,7 +46,7 @@ def default_chain():
     Returns:
 
     """
-    train, _ = default_dataset()
+    train, _ = default_dataset(random_state=997)
 
     m_list = default_m_list_for_chain(train.values)
 
@@ -57,7 +57,7 @@ def default_chain():
     return sc
 
 
-def default_ensemble():
+def default_ensemble(random_state=997):
     """
     Default classifier ensmeble.
 
@@ -66,7 +66,7 @@ def default_ensemble():
     Returns:
 
     """
-    train, _ = default_dataset()
+    train, _ = default_dataset(random_state=random_state)
 
     m_list = default_m_list_for_ensemble(train.values)
 
