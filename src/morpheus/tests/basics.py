@@ -1,6 +1,8 @@
 import pandas as pd
 
 from morpheus import SequentialComposition, ParallelComposition
+from morpheus.algo.selection import base_selection_algorithm
+from morpheus.utils.encoding import *
 
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
@@ -46,7 +48,7 @@ def default_chain(random_state=997):
     Returns:
 
     """
-    train, _ = default_dataset(random_state=997)
+    train, _ = default_dataset(random_state=random_state)
 
     m_list = default_m_list_for_chain(train.values)
 
@@ -155,11 +157,53 @@ def default_m_list_for_ensemble(data):
     return m_list
 
 
+def default_m_list_for_mercs(data):
+    n, m = data.shape
+    metadata = {"nb_atts": m}
+    settings = {"param": 1, "its": 1}
+
+    m_codes = base_selection_algorithm(metadata, settings)
+
+    all_desc_ids, all_targ_ids = [], []
+    for m_code in m_codes:
+        desc_ids, targ_ids, _ = code_to_query(m_code)
+        all_desc_ids.append(desc_ids)
+        all_targ_ids.append(targ_ids)
+
+    m_list = []
+    ids = zip(all_desc_ids, all_targ_ids)
+
+    for desc_ids, targ_ids in ids:
+        msg = """
+        Learning model with desc ids:    {}
+                            targ ids:    {}
+        """.format(
+            desc_ids, targ_ids
+        )
+        print(msg)
+
+        if set(targ_ids).issubset({6, 7}):
+            learner = RandomForestClassifier
+        elif set(targ_ids).issubset({0, 1, 2, 3, 4, 5}):
+            learner = RandomForestRegressor
+        else:
+            msg = """
+            Cannot learn mixed (nominal/numeric) models
+            """
+            raise ValueError(msg)
+
+        # Learn a model for desc_ids-targ_ids
+        m = learn_model(data, desc_ids, targ_ids, learner, max_depth=5, n_estimators=5)
+        m_list.append(m)
+
+    return m_list
+
+
 def learn_model(data, desc_ids, targ_ids, model, **kwargs):
     """
     Learn a model from the data.
 
-    The desc ids and targ ids identify which prediction task
+    The desc ids and targ ids identify which algo task
     you should try to learn from the data.
 
     Model is a machine learning method that has a .fit() method.
