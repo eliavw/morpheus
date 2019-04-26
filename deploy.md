@@ -31,4 +31,4 @@ Sometimes it works by installing jupyter in the environment itself. But sometime
 However, the clean way is the following;
 
 `source activate myenv`
-`python -m ipykernel install --user --name myenv --display-name "Python (myenv)"`
+`python -m ipykernel install --user --name myenv --display-name "Py(myenv)"`
