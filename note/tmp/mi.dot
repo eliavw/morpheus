@@ -1,0 +1,43 @@
+strict digraph  {
+rankdir=BT;
+"d-00" [bipartite=data, fi="0.17375002902707534", idx=0, kind=data, shape="circle", tgt="[0]"];
+"d-01" [bipartite=data, fi="0.1643946814909676", idx=1, kind=data, shape="circle", tgt="[1]"];
+"d-02" [bipartite=data, fi="0.07808553813186943", idx=2, kind=data, shape="circle", tgt="[2]"];
+"d-03" [bipartite=data, fi="0.3396219503185086", idx=3, kind=data, shape="circle", tgt="[3]"];
+"d-04" [bipartite=data, fi="0.08795999347990828", idx=4, kind=data, shape="circle", tgt="[4]"];
+"d-06" [bipartite=data, idx=6, kind=data, shape="circle", tgt="[6]"];
+"f-06" [bipartite=func, function=<bound method ForestRegressor.predict of RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,
+           max_features='auto', max_leaf_nodes=None,
+           min_impurity_decrease=0.0, min_impurity_split=None,
+           min_samples_leaf=1, min_samples_split=2,
+           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,
+           oob_score=False, random_state=None, verbose=0, warm_start=False)>, idx=6, kind=model, mod="RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,\n           max_features='auto', max_leaf_nodes=None,\n           min_impurity_decrease=0.0, min_impurity_split=None,\n           min_samples_leaf=1, min_samples_split=2,\n           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n           oob_score=False, random_state=None, verbose=0, warm_start=False)", shape="square", src="[0, 1, 2, 3, 4, 5, 7]", tgt="[6]", width=1];
+"I(d-05)" [bipartite=data, fi="0.03771994563817134", idx=5, kind=imputation, shape="invtriangle", tgt="[5]"];
+"I(d-07)" [bipartite=data, fi="0.08284616148678718", idx=7, kind=imputation, shape="invtriangle", tgt="[7]"];
+"d-07" [bipartite=data, idx=7, kind=data, shape="circle", tgt="[7]"];
+"f-07" [bipartite=func, function=<bound method ForestClassifier.predict of RandomForestClassifier(bootstrap=True, class_weight=None, criterion='gini',
+            max_depth=5, max_features='auto', max_leaf_nodes=None,
+            min_impurity_decrease=0.0, min_impurity_split=None,
+            min_samples_leaf=1, min_samples_split=2,
+            min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,
+            oob_score=False, random_state=None, verbose=0,
+            warm_start=False)>, idx=7, kind=model, mod="RandomForestClassifier(bootstrap=True, class_weight=None, criterion='gini',\n            max_depth=5, max_features='auto', max_leaf_nodes=None,\n            min_impurity_decrease=0.0, min_impurity_split=None,\n            min_samples_leaf=1, min_samples_split=2,\n            min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n            oob_score=False, random_state=None, verbose=0,\n            warm_start=False)", shape="square", src="[0, 1, 2, 3, 4, 5, 6]", tgt="[7]", width=1];
+"I(d-06)" [bipartite=data, fi="0.11846786191349945", idx=6, kind=imputation, shape="invtriangle", tgt="[6]"];
+"d-00" -> "f-06"  [fi="0.12078424425983295", idx=0];
+"d-00" -> "f-07"  [fi="0.17375002902707534", idx=0];
+"d-01" -> "f-06"  [fi="0.36606579338883777", idx=1];
+"d-01" -> "f-07"  [fi="0.1643946814909676", idx=1];
+"d-02" -> "f-06"  [fi="0.048804595771489996", idx=2];
+"d-02" -> "f-07"  [fi="0.07808553813186943", idx=2];
+"d-03" -> "f-06"  [fi="0.2103104637550414", idx=3];
+"d-03" -> "f-07"  [fi="0.3396219503185086", idx=3];
+"d-04" -> "f-06"  [fi="0.061107306081852455", idx=4];
+"d-04" -> "f-07"  [fi="0.08795999347990828", idx=4];
+"f-06" -> "d-06"  [idx=6];
+"I(d-05)" -> "f-06"  [fi="0.11008143525615835", idx=5];
+"I(d-05)" -> "f-07"  [fi="0.03771994563817134", idx=5];
+"I(d-07)" -> "f-06"  [fi="0.08284616148678718", idx=7];
+"f-07" -> "d-07"  [idx=7];
+"I(d-06)" -> "f-07"  [fi="0.11846786191349945", idx=6];
+}
+

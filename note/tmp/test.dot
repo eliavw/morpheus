@@ -1,34 +1,18 @@
 strict digraph  {
 rankdir=BT;
-splines=ortho;
-"d-00" [bipartite=data, idx=0, kind=data, shape="circle", tgt="[0]"];
-"d-01" [bipartite=data, idx=1, kind=data, shape="circle", tgt="[1]"];
-"d-02" [bipartite=data, idx=2, kind=data, shape="circle", tgt="[2]"];
-"f-01" [bipartite=func, function=<bound method ForestRegressor.predict of RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,
+"d-01" [bipartite=data, fi="0.4941134432922592", idx=1, kind=data, shape="circle", tgt="[1]"];
+"d-03" [bipartite=data, fi="0.27498679132053416", idx=3, kind=data, shape="circle", tgt="[3]"];
+"d-06" [bipartite=data, idx=6, kind=data, shape="circle", tgt="[6]"];
+"f-15" [bipartite=func, function=<bound method ForestRegressor.predict of RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,
            max_features='auto', max_leaf_nodes=None,
            min_impurity_decrease=0.0, min_impurity_split=None,
            min_samples_leaf=1, min_samples_split=2,
            min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,
-           oob_score=False, random_state=None, verbose=0, warm_start=False)>, idx=1, kind=model, mod="RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,\n           max_features='auto', max_leaf_nodes=None,\n           min_impurity_decrease=0.0, min_impurity_split=None,\n           min_samples_leaf=1, min_samples_split=2,\n           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n           oob_score=False, random_state=None, verbose=0, warm_start=False)", shape="square", src="[0, 1, 2]", tgt="[5]", width=2];
-"d-03" [bipartite=data, idx=3, kind=data, shape="circle", tgt="[3]"];
-"d-04" [bipartite=data, idx=4, kind=data, shape="circle", tgt="[4]"];
-"f-02" [bipartite=func, function=<bound method ForestRegressor.predict of RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,
-           max_features='auto', max_leaf_nodes=None,
-           min_impurity_decrease=0.0, min_impurity_split=None,
-           min_samples_leaf=1, min_samples_split=2,
-           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,
-           oob_score=False, random_state=None, verbose=0, warm_start=False)>, idx=2, kind=model, mod="RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,\n           max_features='auto', max_leaf_nodes=None,\n           min_impurity_decrease=0.0, min_impurity_split=None,\n           min_samples_leaf=1, min_samples_split=2,\n           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n           oob_score=False, random_state=None, verbose=0, warm_start=False)", shape="square", src="[0, 1, 3]", tgt="[4, 5]", width=2];
-"M(d-05)" [bipartite=data, idx=5, kind=merge, shape="triangle", tgt="[5]"];
-"d-05" [bipartite=data, idx=5, kind=data, shape="circle", tgt="[5]"];
-"d-00" -> "f-01"  [idx=0];
-"d-00" -> "f-02"  [idx=0];
-"d-01" -> "f-01"  [idx=1];
-"d-01" -> "f-02"  [idx=1];
-"d-02" -> "f-01"  [idx=2];
-"f-01" -> "M(d-05)"  [idx=5];
-"d-03" -> "f-02"  [idx=3];
-"f-02" -> "d-04"  [idx=4];
-"f-02" -> "M(d-05)"  [idx=5];
-"M(d-05)" -> "d-05"  [idx=5];
+           oob_score=False, random_state=None, verbose=0, warm_start=False)>, idx=15, kind=model, mod="RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=5,\n           max_features='auto', max_leaf_nodes=None,\n           min_impurity_decrease=0.0, min_impurity_split=None,\n           min_samples_leaf=1, min_samples_split=2,\n           min_weight_fraction_leaf=0.0, n_estimators=5, n_jobs=None,\n           oob_score=False, random_state=None, verbose=0, warm_start=False)", shape="square", src="[1, 3, 5]", tgt="[6]", width=1];
+"I(d-05)" [bipartite=data, fi="0.23089976538720675", idx=5, kind=imputation, shape="invtriangle", tgt="[5]"];
+"d-01" -> "f-15"  [fi="0.4941134432922592", idx=1, label="0.49"];
+"d-03" -> "f-15"  [fi="0.27498679132053416", idx=3, label="0.27"];
+"f-15" -> "d-06"  [idx=6, label="0.00"];
+"I(d-05)" -> "f-15"  [fi="0.23089976538720675", idx=5, label="0.23"];
 }
 
