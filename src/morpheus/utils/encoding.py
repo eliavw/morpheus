@@ -67,7 +67,7 @@ def determine_atts(desc, targ, miss):
     """
     Determine the entire list of attributes.
     """
-    atts = list(set(desc + targ + miss))
+    atts = list(set(desc).union(targ).union(miss))
     atts.sort()
     return atts
 
