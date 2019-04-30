@@ -1,7 +1,7 @@
 import pandas as pd
 
 from morpheus import SequentialComposition, ParallelComposition
-from morpheus.algo.selection import base_selection_algorithm
+from morpheus.algo.selection import base_selection_algorithm, random_selection_algorithm
 from morpheus.utils.encoding import *
 
 from sklearn.datasets import make_classification
@@ -182,9 +182,53 @@ def default_m_list_for_mercs(data):
         )
         print(msg)
 
-        if set(targ_ids).issubset({6, 7}):
+        if set(targ_ids).issubset({7}):
             learner = RandomForestClassifier
-        elif set(targ_ids).issubset({0, 1, 2, 3, 4, 5}):
+        elif set(targ_ids).issubset({0, 1, 2, 3, 4, 5, 6}):
+            learner = RandomForestRegressor
+        else:
+            msg = """
+            Cannot learn mixed (nominal/numeric) models
+            """
+            raise ValueError(msg)
+
+        # Learn a model for desc_ids-targ_ids
+        m = learn_model(data, desc_ids, targ_ids, learner, max_depth=5, n_estimators=5)
+        m_list.append(m)
+
+    return m_list
+
+
+def random_m_list_for_mercs(data):
+    n, m = data.shape
+    metadata = {"nb_atts": m}
+    settings = {"param": 1,
+                "its": 1,
+                "fraction": 0.3}
+
+    m_codes = random_selection_algorithm(metadata, settings)
+
+    all_desc_ids, all_targ_ids = [], []
+    for m_code in m_codes:
+        desc_ids, targ_ids, _ = code_to_query(m_code)
+        all_desc_ids.append(desc_ids)
+        all_targ_ids.append(targ_ids)
+
+    m_list = []
+    ids = zip(all_desc_ids, all_targ_ids)
+
+    for desc_ids, targ_ids in ids:
+        msg = """
+        Learning model with desc ids:    {}
+                            targ ids:    {}
+        """.format(
+            desc_ids, targ_ids
+        )
+        print(msg)
+
+        if set(targ_ids).issubset({7}):
+            learner = RandomForestClassifier
+        elif set(targ_ids).issubset({0, 1, 2, 3, 4, 5, 6}):
             learner = RandomForestRegressor
         else:
             msg = """

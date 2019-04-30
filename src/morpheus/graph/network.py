@@ -1,4 +1,5 @@
 import networkx as nx
+import numpy as np
 
 from itertools import product
 
@@ -36,7 +37,9 @@ def model_to_graph(model, idx=0):
         )
     ]
     data_nodes_src = [
-        (node_label(i, kind="data"), {"kind": "data", "idx": i, "tgt": [i]})
+        (node_label(i, kind="data"), {"kind": "data",
+                                      "idx": i,
+                                      "tgt": [i]})
         for i in model.desc_ids
     ]
     data_nodes_tgt = [
@@ -54,8 +57,8 @@ def model_to_graph(model, idx=0):
     data_nodes_tgt = [t[0] for t in data_nodes_tgt]
 
     src_edges = [
-        (*e, {"idx": d})
-        for e, d in zip(product(data_nodes_src, func_nodes), model.desc_ids)
+        (*e, {"idx": d, "fi": fi})
+        for e, d, fi in zip(product(data_nodes_src, func_nodes), model.desc_ids, model.feature_importances_)
     ]
     tgt_edges = [
         (*e, {"idx": d})
@@ -65,7 +68,7 @@ def model_to_graph(model, idx=0):
     G.add_edges_from(src_edges)
     G.add_edges_from(tgt_edges)
 
-    # G = add_stage(G)
+    G = add_fi_to_graph(G)
 
     return G
 
@@ -99,22 +102,17 @@ def node_label(idx, kind="function"):
     return "{}-{:02d}".format(c, idx)
 
 
-def add_FI_to_graph(G):
-    a, b = nx.bipartite.sets(G)
-    m_nodes = a if G.nodes()[a.pop()]["bipartite"] == "func" else b
+def add_fi_to_graph(G):
 
-    m = m_nodes.pop()
+    src_nodes = (n for n, in_degree in G.in_degree()
+                 if G.nodes()[n]['kind'] == 'data'
+                 if in_degree == 0)
 
-    e_desc = G.in_edges({m})
+    src_edges = ((n, G.out_edges(n)) for n in src_nodes)
 
-    desc_ids = G.nodes()[m]["mod"].desc_ids
-    feat_imp = G.nodes()[m]["mod"].feature_importances_
-
-    fi = dict(zip(desc_ids, feat_imp))
-
-    for e in e_desc:
-        e_idx = G.edges()[e]["id"]
-        G.edges()[e]["FI"] = fi[e_idx]
+    for n, edges in src_edges:
+        fi = np.mean([G.edges()[e]['fi'] for e in edges])
+        G.nodes()[n]['fi'] = fi
 
     return G
 
@@ -184,6 +182,36 @@ def convert_data_node_to_merge_node(G, data_node_label):
 
     G.nodes()[merge_node_label]["shape"] = '"triangle"'
     G.nodes()[merge_node_label]["kind"] = "merge"
+    # G.nodes()[merge_node_label]["function"] = np.mean
+
+    return mapping[data_node_label]
+
+
+def add_imputation_nodes(G, q_desc):
+    relevant_nodes = [
+        node
+        for node, in_degree in G.in_degree()
+        if G.nodes()[node]["kind"] == "data"
+        if in_degree == 0
+        if G.nodes()[node]['idx'] not in q_desc
+    ]
+
+    for node in relevant_nodes:
+        convert_data_node_to_imputation_node(G, node)
+    return G
+
+
+def convert_data_node_to_imputation_node(G, data_node_label):
+    assert G.nodes()[data_node_label]["bipartite"] == "data"
+
+    mapping = {}
+    mapping[data_node_label] = "I({})".format(data_node_label)
+    merge_node_label = mapping[data_node_label]
+
+    nx.relabel_nodes(G, mapping, copy=False)
+
+    G.nodes()[merge_node_label]["shape"] = '"invtriangle"'
+    G.nodes()[merge_node_label]["kind"] = "imputation"
     # G.nodes()[merge_node_label]["function"] = np.mean
 
     return mapping[data_node_label]
