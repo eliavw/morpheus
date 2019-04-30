@@ -3,6 +3,10 @@ from .network import (
     add_merge_nodes,
     add_stage,
     add_imputation_nodes,
-    convert_positions_to_dot_format
+    convert_positions_to_dot_format,
+    get_ids,
 )
+
+from .graphviz import fix_layout
+
 from .plotly import model_graph_traces, model_graph_layout

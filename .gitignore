@@ -1,14 +1,26 @@
+# Ignore these output/temporary directories
+prod/
+**/prod/
 
-# Out dir is custom to your own scripts.
+tmp/
+**/tmp/
+
 out/
-*/tmp/ # tmp files
+**/out/
 
-# Stupid directories from IDE, python, notebooks
+
+# Stupid directories
+
+## From pycharm
 .idea/
 .ipynb_checkpoints/
-__pycache__/
 **/.idea
-**/.ipynb_checkpoints
-**/.ipynb_checkpoints/
+
+## From python
+__pycache__/
 **/__pycache__
 **/__pycache__/
+
+## From notebooks
+**/.ipynb_checkpoints
+**/.ipynb_checkpoints/

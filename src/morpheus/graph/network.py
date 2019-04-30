@@ -37,9 +37,7 @@ def model_to_graph(model, idx=0):
         )
     ]
     data_nodes_src = [
-        (node_label(i, kind="data"), {"kind": "data",
-                                      "idx": i,
-                                      "tgt": [i]})
+        (node_label(i, kind="data"), {"kind": "data", "idx": i, "tgt": [i]})
         for i in model.desc_ids
     ]
     data_nodes_tgt = [
@@ -58,7 +56,11 @@ def model_to_graph(model, idx=0):
 
     src_edges = [
         (*e, {"idx": d, "fi": fi})
-        for e, d, fi in zip(product(data_nodes_src, func_nodes), model.desc_ids, model.feature_importances_)
+        for e, d, fi in zip(
+            product(data_nodes_src, func_nodes),
+            model.desc_ids,
+            model.feature_importances_,
+        )
     ]
     tgt_edges = [
         (*e, {"idx": d})
@@ -104,15 +106,18 @@ def node_label(idx, kind="function"):
 
 def add_fi_to_graph(G):
 
-    src_nodes = (n for n, in_degree in G.in_degree()
-                 if G.nodes()[n]['kind'] == 'data'
-                 if in_degree == 0)
+    src_nodes = (
+        n
+        for n, in_degree in G.in_degree()
+        if G.nodes()[n]["kind"] == "data"
+        if in_degree == 0
+    )
 
     src_edges = ((n, G.out_edges(n)) for n in src_nodes)
 
     for n, edges in src_edges:
-        fi = np.mean([G.edges()[e]['fi'] for e in edges])
-        G.nodes()[n]['fi'] = fi
+        fi = np.mean([G.edges()[e]["fi"] for e in edges])
+        G.nodes()[n]["fi"] = fi
 
     return G
 
@@ -193,7 +198,7 @@ def add_imputation_nodes(G, q_desc):
         for node, in_degree in G.in_degree()
         if G.nodes()[node]["kind"] == "data"
         if in_degree == 0
-        if G.nodes()[node]['idx'] not in q_desc
+        if G.nodes()[node]["idx"] not in q_desc
     ]
 
     for node in relevant_nodes:
@@ -222,3 +227,30 @@ def place_original_data_node_behind_merge_node(G, original_node, merge_node_labe
     G.add_edge(merge_node_label, original_node[0], idx=original_node[1]["idx"])
 
     return G
+
+
+def get_ids(g, kind="desc"):
+    if kind in {"s", "src", "source", "d", "desc", "descriptive"}:
+        r = [
+            g.nodes()[n]["idx"]
+            for n, in_degree in g.in_degree
+            if in_degree == 0
+            if g.nodes()[n]["kind"] == "data"
+        ]
+
+    elif kind in {"t", "tgt", "targ", "target"}:
+        r = [
+            g.nodes()[n]["idx"]
+            for n, out_degree in g.out_degree
+            if out_degree == 0
+            if g.nodes()[n]["kind"] == "data"
+        ]
+    else:
+        msg = """
+        Did not recognize kind:   {}
+        """.format(
+            kind
+        )
+        raise ValueError(msg)
+
+    return set(r)

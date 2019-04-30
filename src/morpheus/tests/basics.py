@@ -202,9 +202,7 @@ def default_m_list_for_mercs(data):
 def random_m_list_for_mercs(data):
     n, m = data.shape
     metadata = {"nb_atts": m}
-    settings = {"param": 1,
-                "its": 1,
-                "fraction": 0.3}
+    settings = {"param": 1, "its": 1, "fraction": 0.3}
 
     m_codes = random_selection_algorithm(metadata, settings)
 
