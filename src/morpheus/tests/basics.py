@@ -3,14 +3,17 @@ import pandas as pd
 from morpheus import SequentialComposition, ParallelComposition
 from morpheus.algo.selection import base_selection_algorithm, random_selection_algorithm
 from morpheus.utils.encoding import *
+from morpheus.utils import debug_print
 
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
+VERBOSITY = 0
 
-def default_dataset(random_state=997):
+
+def default_dataset(n_features=7, random_state=997):
     """
     Generate a dataset to be used in tests.
 
@@ -19,8 +22,8 @@ def default_dataset(random_state=997):
     """
     X, y = make_classification(
         n_samples=10 ** 3,
-        n_features=7,
-        n_informative=7,
+        n_features=n_features,
+        n_informative=n_features,
         n_repeated=0,
         n_redundant=0,
         n_clusters_per_class=2,
@@ -159,6 +162,8 @@ def default_m_list_for_ensemble(data):
 
 def default_m_list_for_mercs(data):
     n, m = data.shape
+    attributes = list(range(m))
+
     metadata = {"nb_atts": m}
     settings = {"param": 1, "its": 1}
 
@@ -182,9 +187,9 @@ def default_m_list_for_mercs(data):
         )
         print(msg)
 
-        if set(targ_ids).issubset({7}):
+        if set(targ_ids).issubset(attributes[-1:]):
             learner = RandomForestClassifier
-        elif set(targ_ids).issubset({0, 1, 2, 3, 4, 5, 6}):
+        elif set(targ_ids).issubset(attributes[:-1]):
             learner = RandomForestRegressor
         else:
             msg = """
@@ -199,12 +204,14 @@ def default_m_list_for_mercs(data):
     return m_list
 
 
-def random_m_list_for_mercs(data):
+def random_m_list_for_mercs(data, its=1, fraction=0.3, random_state=997):
     n, m = data.shape
-    metadata = {"nb_atts": m}
-    settings = {"param": 1, "its": 1, "fraction": 0.3}
+    attributes = list(range(m))
 
-    m_codes = random_selection_algorithm(metadata, settings)
+    metadata = {"nb_atts": m}
+    settings = {"param": 1, "its": its, "fraction": fraction}
+
+    m_codes = random_selection_algorithm(metadata, settings, random_state=random_state)
 
     all_desc_ids, all_targ_ids = [], []
     for m_code in m_codes:
@@ -222,11 +229,11 @@ def random_m_list_for_mercs(data):
         """.format(
             desc_ids, targ_ids
         )
-        print(msg)
+        debug_print(msg, level=1, V=VERBOSITY)
 
-        if set(targ_ids).issubset({7}):
+        if set(targ_ids).issubset(attributes[-1:]):
             learner = RandomForestClassifier
-        elif set(targ_ids).issubset({0, 1, 2, 3, 4, 5, 6}):
+        elif set(targ_ids).issubset(attributes[:-1]):
             learner = RandomForestRegressor
         else:
             msg = """
@@ -235,7 +242,15 @@ def random_m_list_for_mercs(data):
             raise ValueError(msg)
 
         # Learn a model for desc_ids-targ_ids
-        m = learn_model(data, desc_ids, targ_ids, learner, max_depth=5, n_estimators=5)
+        m = learn_model(
+            data,
+            desc_ids,
+            targ_ids,
+            learner,
+            max_depth=5,
+            n_estimators=5,
+            random_state=random_state,
+        )
         m_list.append(m)
 
     return m_list

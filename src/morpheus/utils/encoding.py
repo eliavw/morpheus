@@ -49,7 +49,7 @@ def code_to_query(code, attributes=None):
             """.format(
                 code[i], code
             )
-            warnings.warn(msg)
+            raise ValueError(msg)
 
     return desc, targ, miss
 
@@ -60,7 +60,7 @@ def query_to_code(q_desc, q_targ, q_miss, atts=None):
 
     code = [encode_attribute(a, q_desc, q_targ) for a in atts]
 
-    return code
+    return np.array(code)
 
 
 def determine_atts(desc, targ, miss):

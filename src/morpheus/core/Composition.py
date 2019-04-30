@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..utils.extra import debug_print
+from morpheus.utils import debug_print
 
 VERBOSITY = 0
 

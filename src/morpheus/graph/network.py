@@ -105,6 +105,17 @@ def node_label(idx, kind="function"):
 
 
 def add_fi_to_graph(G):
+    """
+    Add feature importances to input data nodes.
+
+    Parameters
+    ----------
+    G
+
+    Returns
+    -------
+
+    """
 
     src_nodes = (
         n
