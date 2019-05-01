@@ -119,16 +119,11 @@ def mrai_algorithm(
             return len(list_of_graphs) > 0
 
     def criterion(g):
-        outputs = set(
-            [
-                g.nodes()[node]["idx"]
-                for node, out_degree in g.out_degree()
-                if out_degree == 0
-                if g.nodes()[node]["kind"] == "data"
-            ]
-        )
+        src = get_ids(g, kind='src')
+        tgt = get_ids(g, kind='tgt')
 
-        yes_no = len(set(q_targ).intersection(outputs)) > 0
+        forbidden_inputs = len(set(q_targ).intersection(src))
+        relevant = len(set(q_targ).intersection(tgt)) == 0
 
         feature_importances_available = [
             g.nodes()[node]["fi"]
@@ -140,23 +135,28 @@ def mrai_algorithm(
 
         quantifier = np.sum(feature_importances_available)
 
-        result = int(yes_no) * quantifier
+        result = 0
+        result -= 10*relevant   # Ten penalty points for not predicting something useful
+        result -= 1*forbidden_inputs           # One penalty point per target as input
+        result += quantifier
 
         msg = """
-        yes_no:       {}
-        quantifier:   {}
-        result:       {}
+        relevant:           {}
+        forbidden inputs:   {}
+        quantifier:         {}
+        result:             {}
         """.format(
-            yes_no, quantifier, result
+            relevant, forbidden_inputs ,quantifier, result
         )
         debug_print(msg, level=1, V=VERBOSITY)
 
         return result
 
-    thresholds = np.clip(np.arange(init_threshold, -stepsize, -stepsize), 0, 1)
+    thresholds = np.clip(np.arange(init_threshold, -1-stepsize, -stepsize), -1, 1)
 
     for thr in thresholds:
         g_relevant = [g for g in g_list if criterion(g) > thr]
+
         if stopping_criterion(g_relevant):
             mod_ids = [
                 [n for n in g.nodes() if g.nodes()[n]["kind"] == "model"]
