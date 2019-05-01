@@ -5,6 +5,7 @@ from .network import (
     add_imputation_nodes,
     convert_positions_to_dot_format,
     get_ids,
+    get_nodes
 )
 
 from .graphviz import fix_layout

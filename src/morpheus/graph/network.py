@@ -214,7 +214,7 @@ def add_imputation_nodes(G, q_desc):
 
     for node in relevant_nodes:
         convert_data_node_to_imputation_node(G, node)
-    return G
+    return
 
 
 def convert_data_node_to_imputation_node(G, data_node_label):
@@ -255,6 +255,39 @@ def get_ids(g, kind="desc"):
             for n, out_degree in g.out_degree
             if out_degree == 0
             if g.nodes()[n]["kind"] == "data"
+        ]
+    else:
+        msg = """
+        Did not recognize kind:   {}
+        """.format(
+            kind
+        )
+        raise ValueError(msg)
+
+    return set(r)
+
+
+def get_nodes(g, kind="desc"):
+    if kind in {"s", "src", "source", "d", "desc", "descriptive"}:
+        r = [
+            n
+            for n, in_degree in g.in_degree
+            if in_degree == 0
+            if g.nodes()[n]["kind"] == "data"
+        ]
+
+    elif kind in {"t", "tgt", "targ", "target"}:
+        r = [
+            n
+            for n, out_degree in g.out_degree
+            if out_degree == 0
+            if g.nodes()[n]["kind"] == "data"
+        ]
+    elif kind in {"m", "mod", "model"}:
+        r = [
+            n
+            for n in g.nodes()
+            if g.nodes()[n]["kind"] == "model"
         ]
     else:
         msg = """

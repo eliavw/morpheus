@@ -1,12 +1,13 @@
 import copy
 import networkx as nx
 import numpy as np
+import warnings
 
 from functools import reduce
-from morpheus.graph import add_imputation_nodes, add_merge_nodes, get_ids
+from morpheus.graph import add_imputation_nodes, add_merge_nodes, get_ids, get_nodes
 from morpheus.utils import debug_print, code_to_query, query_to_code
 
-VERBOSITY = 0
+VERBOSITY = 1
 
 
 def mi_algorithm(g_list, q_code):
@@ -27,9 +28,10 @@ def mi_algorithm(g_list, q_code):
     g_relevant = [g for g in g_list if criterion(g)]
     g_relevant = [copy.copy(g) for g in g_relevant]
 
-    g_relevant = [add_imputation_nodes(g, q_desc) for g in g_relevant]
-
     result = reduce(nx.compose, g_relevant)
+
+    add_imputation_nodes(result, q_desc)
+    add_merge_nodes(result)
 
     return result
 
@@ -87,21 +89,178 @@ def ma_algorithm(g_list, q_code, init_threshold=1.0, stepsize=0.1):
             break
 
     g_relevant = [copy.deepcopy(g) for g in g_relevant]
-    g_relevant = [add_imputation_nodes(g, q_desc) for g in g_relevant]
     result = reduce(nx.compose, g_relevant)
 
+    add_imputation_nodes(result, q_desc)
     add_merge_nodes(result)
 
     return result
 
 
-def mrai_algorithm(
+def mrai_algorithm(g_list,
+                   q_code,
+                   init_threshold=1.0,
+                   stepsize=0.1,
+                   avoid_src=None,
+                   return_avl_g=False,
+                   greedy=False,
+                   stochastic=False,
+                   imputation_nodes=True,
+                   merge_nodes=True
+                   ):
+
+    # Preliminaries
+    if avoid_src is None:
+        avoid_src = set([])
+
+    q_desc, q_targ, q_miss = code_to_query(q_code)
+    nb_tgt = len(q_targ)
+
+    thresholds = np.arange(init_threshold, -1 - stepsize, -stepsize)
+    thresholds = np.clip(thresholds, -1, 1)
+
+    # Methods
+    def stopping_criterion(list_of_graphs):
+        return len(list_of_graphs) > 0
+
+    def criterion(g):
+        src_ids = get_ids(g, kind='src')
+        tgt_ids = get_ids(g, kind='tgt')
+
+        avl_src = src_ids.intersection(q_desc)
+        bad_src = src_ids.intersection(set(q_targ).union(avoid_src))
+
+        rel_tgt = tgt_ids.intersection(q_targ)
+
+        avl_fi, bad_fi = [], []
+        for node in g.nodes():
+            n = g.nodes(data=True)[node]
+            if n['kind'] == 'data':
+                if n['idx'] in avl_src:
+                    avl_fi.append(n['fi'])
+                elif n['idx'] in bad_src:
+                    bad_fi.append(n['fi'])
+                else:
+                    pass
+
+        factor_01 = int(len(rel_tgt) > 0)
+        factor_02 = np.sum(avl_fi)
+        factor_03 = np.sum(bad_fi)
+
+        relevance_criterion = factor_01 * (factor_02 - factor_03)
+
+        model = [n for n in g.nodes() if n.startswith('f')]
+        msg = """
+        model:                      {}
+        q_targ:                     {}
+        g_targ:                     {}
+        f_01 (relevant target):     {}
+        f_02 (fi avl attributes):   {}
+        f_03 (fi bad attributes):   {}
+        relevance_criterion:        {}
+        """.format(
+            model, q_targ, tgt_ids, factor_01, factor_02, factor_03, relevance_criterion
+        )
+        if relevance_criterion > 0:
+            debug_print(msg, level=1, V=VERBOSITY)
+
+        return relevance_criterion
+
+    # Actual algorithm
+    if stochastic:
+        criteria = [criterion(g) for g in g_list]
+        picks = _pick(criteria, n=1)
+
+        msg = """
+                criteria:   {}
+                picks:      {}
+                type(picks):{}
+                """.format(criteria, picks, type(picks))
+        debug_print(msg, level=1, V=VERBOSITY)
+
+        sel_g = [g_list[g_idx] for g_idx in picks]
+
+        if return_avl_g:
+            avl_g = [g for g in g_list if g not in sel_g]
+
+        sel_g = [copy.deepcopy(g) for g in sel_g]
+        res_g = reduce(nx.compose, sel_g)
+
+    elif nb_tgt == 1 or greedy:
+        criteria = [criterion(g) for g in g_list]
+
+        for thr in thresholds:
+            sel_g = [g_list[g_idx] for g_idx, c in enumerate(criteria) if c > thr]      # Available graphs = Graphs that satisfy the criterion
+
+            if stopping_criterion(sel_g):
+                mod_ids = [get_nodes(g, kind='model') for g in sel_g]
+                msg = """
+                We have selected    {0} model(s) 
+                at threshold:       {1:.2f}
+                with model ids:     {2}
+                """.format(len(sel_g), thr, mod_ids)
+                debug_print(msg, level=0, V=VERBOSITY)
+                break
+
+        if return_avl_g:
+            avl_g = [g for g in g_list if g not in sel_g]
+
+        sel_g = [copy.deepcopy(g) for g in sel_g]
+        res_g = reduce(nx.compose, sel_g)
+
+    elif nb_tgt > 1:
+        msg = """
+        Multi-target case:      
+        with target attributes: {}
+        """.format(q_targ)
+        debug_print(msg, V=VERBOSITY)
+
+        sel_g = []
+        avl_g = g_list
+        for i in range(len(q_targ)):
+            tgt_q_targ = q_targ[i:i+1]
+            tgt_avoid_src = q_targ[0:i] + q_targ[i+1:]
+            tgt_q_miss = q_miss + tgt_avoid_src
+
+            tgt_q_code = query_to_code(q_desc, tgt_q_targ, q_miss=tgt_q_miss)
+
+            msg = """
+            tgt_q_code:     {}
+            """.format(tgt_q_code)
+            debug_print(msg, level=2, V=VERBOSITY)
+            tgt_g, avl_g = mrai_algorithm(avl_g, tgt_q_code, avoid_src=tgt_avoid_src, return_avl_g=True, merge_nodes=False)
+
+            sel_g.append(tgt_g)
+
+        res_g = reduce(nx.compose, sel_g)
+
+    else:
+        msg = """
+        nb_tgt:     {}
+        We expect one or more targets.
+        """.format(nb_tgt)
+        raise ValueError(msg)
+
+    if imputation_nodes:
+        add_imputation_nodes(res_g, q_desc)
+    if merge_nodes:
+        add_merge_nodes(res_g)
+    if return_avl_g:
+        return res_g, avl_g
+    else:
+        return res_g
+
+
+def mrai_algorithm_old(
     g_list,
     q_code,
     init_threshold=1.0,
     stepsize=0.1,
     complete=False,
     return_leftovers=False,
+    predict_targ_and_missing=False,
+    imputation_nodes=True,
+    merge_nodes=True
 ):
     q_desc, q_targ, q_miss = code_to_query(q_code)
 
@@ -119,11 +278,12 @@ def mrai_algorithm(
             return len(list_of_graphs) > 0
 
     def criterion(g):
-        src = get_ids(g, kind='src')
         tgt = get_ids(g, kind='tgt')
 
-        forbidden_inputs = len(set(q_targ).intersection(src))
-        relevant = len(set(q_targ).intersection(tgt)) == 0
+        if predict_targ_and_missing:
+            relevance = int(len((set(q_targ).union(q_miss)).intersection(tgt)) > 0)
+        else:
+            relevance = int(len(set(q_targ).intersection(tgt)) > 0)
 
         feature_importances_available = [
             g.nodes()[node]["fi"]
@@ -133,24 +293,33 @@ def mrai_algorithm(
             if g.nodes()[node]["idx"] in q_desc
         ]
 
-        quantifier = np.sum(feature_importances_available)
+        feature_importances_tgt_input = [
+            g.nodes()[node]["fi"]
+            for node, in_degree in g.in_degree()
+            if in_degree == 0
+            if g.nodes()[node]["kind"] == "data"
+            if g.nodes()[node]["idx"] in q_targ
+        ]
 
-        result = 0
-        result -= 10*relevant   # Ten penalty points for not predicting something useful
-        result -= 1*forbidden_inputs           # One penalty point per target as input
-        result += quantifier
+        src_quantifier_pos = np.sum(feature_importances_available)
+        src_quantifier_neg = (1-np.sum(feature_importances_tgt_input))
 
+        relevance_criterion = relevance * src_quantifier_pos * src_quantifier_neg
+
+        model = [n for n in g.nodes() if n.startswith('f')]
         msg = """
-        relevant:           {}
-        forbidden inputs:   {}
-        quantifier:         {}
-        result:             {}
+        model:                      {}
+        relevance:                  {}
+        src_quantifier_pos:         {}
+        src_quantifier_neg:         {}
+        result:                     {}
         """.format(
-            relevant, forbidden_inputs ,quantifier, result
+            model, relevance, src_quantifier_pos, src_quantifier_neg, relevance_criterion
         )
-        debug_print(msg, level=1, V=VERBOSITY)
+        if relevance_criterion > 0:
+            debug_print(msg, level=1, V=VERBOSITY)
 
-        return result
+        return relevance_criterion
 
     thresholds = np.clip(np.arange(init_threshold, -1-stepsize, -stepsize), -1, 1)
 
@@ -177,11 +346,12 @@ def mrai_algorithm(
         g_leftovers = [g for g in g_list if g not in g_relevant]
 
     g_relevant = [copy.deepcopy(g) for g in g_relevant]
-    g_relevant = [add_imputation_nodes(g, q_desc) for g in g_relevant]
     result = reduce(nx.compose, g_relevant)
 
-    add_merge_nodes(result)
-
+    if imputation_nodes:
+        add_imputation_nodes(result, q_desc)
+    if merge_nodes:
+        add_merge_nodes(result)
     if return_leftovers:
         return result, g_leftovers
     else:
@@ -196,7 +366,95 @@ def it_algorithm(g_list, q_code, max_steps=4):
     q_desc, q_targ, q_miss = code_to_query(q_code)
 
     avl_desc = set(q_desc)
-    avl_targ = set(q_targ + q_miss)
+    avl_targ = set(q_targ+q_miss)
+    avl_atts = set(q_desc+q_targ+q_miss)
+
+    avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts) # Query based on availability
+
+    avl_g = g_list
+
+    greedy = True
+
+    res_g = nx.DiGraph()
+
+    for step in range(max_steps):
+        last = step == max_steps-1
+
+        if last:
+            avl_targ = set(q_targ).difference(avl_desc) # All targets that are not yet known
+            avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)
+            greedy = False # Get all remaining targets
+
+        # Get next step
+        nxt_g, avl_g = mrai_algorithm(avl_g, avl_q, return_avl_g=True, greedy=greedy, avoid_src=q_targ)
+        res_g = nx.compose(res_g, nxt_g)
+
+        # Update query
+        nxt_g_targ = get_ids(nxt_g, kind='targ')
+
+        avl_desc = avl_desc.union(nxt_g_targ)
+        avl_targ = avl_targ.difference(nxt_g_targ)
+        avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)  # Query based on availability
+
+        if stopping_criterion(avl_desc, q_targ):
+            break
+
+    res_g = _prune(res_g, q_targ)
+
+    return res_g
+
+
+def rw_algorithm(g_list, q_code, max_steps=4):
+    def stopping_criterion(avl_targ, step):
+        reason_01 = len(avl_targ) == 0
+        reason_02 = step == max_steps-1
+        return reason_01 or reason_02
+
+    # Init
+    greedy = True
+
+    q_desc, q_targ, q_miss = code_to_query(q_code)
+    avl_desc = set(q_desc)
+    avl_targ = set(q_targ)
+    avl_atts = set(q_desc + q_targ + q_miss)
+    avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts) # Query based on availability
+
+    avl_g = g_list
+    res_g = nx.DiGraph()
+
+    for step in range(max_steps):
+        # Get next step
+        nxt_g, avl_g = mrai_algorithm(avl_g, avl_q, return_avl_g=True, avoid_src=q_targ, stochastic=True, merge_nodes=False, imputation_nodes=False)
+        res_g = nx.compose(nxt_g, res_g)
+
+        # Update query
+        nxt_g_desc = get_ids(nxt_g, kind='desc')
+
+        avl_desc = avl_desc
+        avl_targ = nxt_g_desc.difference(avl_desc)                  # This is limiting
+        avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)    # Query based on availability
+
+        if stopping_criterion(avl_targ, step):
+            break
+
+    add_merge_nodes(res_g)
+    add_imputation_nodes(res_g, q_desc)
+
+    res_g = _prune(res_g, q_targ)
+
+    return res_g
+
+
+def it_algorithm_old(g_list, q_code, max_steps=4):
+    def stopping_criterion(known_attributes, target_attributes):
+        return len(set(target_attributes).difference(known_attributes)) == 0
+
+    # Init
+    q_desc, q_targ, q_miss = code_to_query(q_code)
+
+    avl_desc = set(q_desc)
+    avl_targ = set(q_targ+q_miss)
+    avl_miss = set([])
 
     avl_grph = g_list
 
@@ -221,17 +479,16 @@ def it_algorithm(g_list, q_code, max_steps=4):
         Starting step:      {}
         Available targets:  {}
         Available desc   :  {}
+        Available miss:     {}
         """.format(
-            step, avl_targ, avl_desc
+            step, avl_targ, avl_desc, avl_miss
         )
         debug_print(msg, level=0, V=VERBOSITY)
 
         # Do things
-        q_code = query_to_code(avl_desc, avl_targ, [])
+        q_code = query_to_code(avl_desc, avl_targ, avl_miss)
 
-        g_nxt, avl_grph = mrai_algorithm(
-            avl_grph, q_code, complete=last, return_leftovers=True
-        )
+        g_nxt, avl_grph = mrai_algorithm(avl_grph, q_code, return_avl_g=True, greedy=not last, avoid_src=q_targ)
 
         g_res = nx.compose(g_res, g_nxt)
 
@@ -239,6 +496,7 @@ def it_algorithm(g_list, q_code, max_steps=4):
         g_nxt_targ = get_ids(g_nxt, kind="targ")
 
         avl_desc = avl_desc.union(g_nxt_targ)
+        avl_miss = avl_miss.difference((g_nxt_targ))
         avl_targ = avl_targ.difference(g_nxt_targ)
 
         if stopping_criterion(avl_desc, q_targ):
@@ -249,7 +507,7 @@ def it_algorithm(g_list, q_code, max_steps=4):
     return g_res
 
 
-def rw_algorithm(g_list, q_code, max_chain_size=5):
+def rw_algorithm_old(g_list, q_code, max_chain_size=5):
     # Init
     q_desc, q_targ, q_miss = code_to_query(q_code)
 
@@ -323,3 +581,42 @@ def _prune(g, tgt_nodes=None):
         g.remove_node(n)
 
     return g
+
+
+def _pick(criteria, n=1):
+    """
+    Interpret an array of appropriateness scores as a distribution
+    corresponding to the probability of a certain model being selected.
+
+
+    Parameters
+    ----------
+    criteria:   list
+                Array that quantifies how likely a pick should be.
+    n:          int
+                Number of picks
+
+    Returns
+    -------
+    picks:      np.ndarray
+                List of indices that were picked
+    """
+
+    criteria += abs(np.min([0, np.min(criteria)])) # Shift in case of negative values
+    norm = np.linalg.norm(criteria, 1)
+
+    if norm > 0:
+        criteria = criteria / norm
+    else:
+        msg = """
+        Not a single appropriate model was found, therefore
+        making an arbitrary choice.
+        """
+        warnings.warn(msg)
+        # If you cannot be right, be arbitrary
+        criteria = [1 / len(criteria) for i in criteria]
+
+    draw = np.random.multinomial(1, criteria, size=n)
+    picks = np.where(draw == 1)[1]
+
+    return picks

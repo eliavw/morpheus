@@ -54,7 +54,7 @@ def code_to_query(code, attributes=None):
     return desc, targ, miss
 
 
-def query_to_code(q_desc, q_targ, q_miss, atts=None):
+def query_to_code(q_desc, q_targ, q_miss=None, atts=None):
     if atts is None:
         atts = determine_atts(q_desc, q_targ, q_miss)
 
