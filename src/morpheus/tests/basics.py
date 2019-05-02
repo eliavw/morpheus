@@ -27,6 +27,7 @@ def default_dataset(n_features=7, random_state=997):
         n_repeated=0,
         n_redundant=0,
         n_clusters_per_class=2,
+        random_state=random_state,
     )
 
     X_train, X_test, y_train, y_test = train_test_split(

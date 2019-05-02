@@ -41,7 +41,7 @@ class Morpheus(object):
         self.selection_algorithm = self.selection_algorithms[sel_algo]
         self.induction_algorithm = self.induction_algorithms[ind_algo]
         self.prediction_algorithm = self.prediction_algorithms[pred_algo]
-        self.inference_algorithm = self.inference_algorithm[inf_algo]
+        self.inference_algorithm = self.inference_algorithms[inf_algo]
 
         self.m_codes = np.array([])
         self.m_list = []
@@ -63,7 +63,7 @@ class Morpheus(object):
 
     def predict(self, X, q_code):
 
-        q_grph = self.prediction_algorithm(self.g_list, q_code)
-        f_list = self.inference_algorithm(q_grph)
+        self.q_grph = self.prediction_algorithm(self.g_list, q_code)
+        self.f_list = self.inference_algorithm(self.q_grph)
 
-        return f_list
+        return self.f_list

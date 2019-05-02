@@ -8,6 +8,6 @@ from .network import (
     get_nodes,
 )
 
-from .graphviz import fix_layout
+from .graphviz import fix_layout, to_dot
 
 from .plotly import model_graph_traces, model_graph_layout
