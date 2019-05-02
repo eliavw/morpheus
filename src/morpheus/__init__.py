@@ -1,2 +1,2 @@
-from .core.ParallelComposition import ParallelComposition
-from .core.SequentialComposition import SequentialComposition
+from .composition.ParallelComposition import ParallelComposition
+from .composition.SequentialComposition import SequentialComposition

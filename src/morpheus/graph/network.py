@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 
 from itertools import product
+from .graphviz import fix_layout
 
 
 def model_to_graph(model, idx=0):
@@ -71,6 +72,8 @@ def model_to_graph(model, idx=0):
     G.add_edges_from(tgt_edges)
 
     G = add_fi_to_graph(G)
+
+    fix_layout(G)
 
     return G
 
@@ -284,11 +287,7 @@ def get_nodes(g, kind="desc"):
             if g.nodes()[n]["kind"] == "data"
         ]
     elif kind in {"m", "mod", "model"}:
-        r = [
-            n
-            for n in g.nodes()
-            if g.nodes()[n]["kind"] == "model"
-        ]
+        r = [n for n in g.nodes() if g.nodes()[n]["kind"] == "model"]
     else:
         msg = """
         Did not recognize kind:   {}

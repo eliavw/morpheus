@@ -5,9 +5,11 @@ import warnings
 
 from functools import reduce
 from morpheus.graph import add_imputation_nodes, add_merge_nodes, get_ids, get_nodes
-from morpheus.utils import debug_print, code_to_query, query_to_code
+from morpheus.utils import code_to_query, query_to_code
 
-VERBOSITY = 1
+from morpheus.utils import debug_print
+
+VERBOSITY = 0
 
 
 def mi_algorithm(g_list, q_code):
@@ -97,17 +99,19 @@ def ma_algorithm(g_list, q_code, init_threshold=1.0, stepsize=0.1):
     return result
 
 
-def mrai_algorithm(g_list,
-                   q_code,
-                   init_threshold=1.0,
-                   stepsize=0.1,
-                   avoid_src=None,
-                   return_avl_g=False,
-                   greedy=False,
-                   stochastic=False,
-                   imputation_nodes=True,
-                   merge_nodes=True
-                   ):
+def mrai_algorithm(
+    g_list,
+    q_code,
+    init_threshold=1.0,
+    stepsize=0.1,
+    avoid_src=None,
+    return_avl_g=False,
+    greedy=False,
+    stochastic=False,
+    imputation_nodes=True,
+    merge_nodes=True,
+    random_state=997,
+):
 
     # Preliminaries
     if avoid_src is None:
@@ -124,8 +128,8 @@ def mrai_algorithm(g_list,
         return len(list_of_graphs) > 0
 
     def criterion(g):
-        src_ids = get_ids(g, kind='src')
-        tgt_ids = get_ids(g, kind='tgt')
+        src_ids = get_ids(g, kind="src")
+        tgt_ids = get_ids(g, kind="tgt")
 
         avl_src = src_ids.intersection(q_desc)
         bad_src = src_ids.intersection(set(q_targ).union(avoid_src))
@@ -135,11 +139,11 @@ def mrai_algorithm(g_list,
         avl_fi, bad_fi = [], []
         for node in g.nodes():
             n = g.nodes(data=True)[node]
-            if n['kind'] == 'data':
-                if n['idx'] in avl_src:
-                    avl_fi.append(n['fi'])
-                elif n['idx'] in bad_src:
-                    bad_fi.append(n['fi'])
+            if n["kind"] == "data":
+                if n["idx"] in avl_src:
+                    avl_fi.append(n["fi"])
+                elif n["idx"] in bad_src:
+                    bad_fi.append(n["fi"])
                 else:
                     pass
 
@@ -147,9 +151,10 @@ def mrai_algorithm(g_list,
         factor_02 = np.sum(avl_fi)
         factor_03 = np.sum(bad_fi)
 
-        relevance_criterion = factor_01 * (factor_02 - factor_03)
-
-        model = [n for n in g.nodes() if n.startswith('f')]
+        relevance_criterion = factor_01 * max(
+            0, factor_02 - factor_03
+        )  # zero means: do not pick
+        model = [n for n in g.nodes() if n.startswith("f")]
         msg = """
         model:                      {}
         q_targ:                     {}
@@ -162,20 +167,21 @@ def mrai_algorithm(g_list,
             model, q_targ, tgt_ids, factor_01, factor_02, factor_03, relevance_criterion
         )
         if relevance_criterion > 0:
-            debug_print(msg, level=1, V=VERBOSITY)
+            debug_print(msg, level=2, V=VERBOSITY)
 
         return relevance_criterion
 
     # Actual algorithm
     if stochastic:
         criteria = [criterion(g) for g in g_list]
-        picks = _pick(criteria, n=1)
+        picks = _pick(criteria, n=1, random_state=random_state)
 
         msg = """
                 criteria:   {}
                 picks:      {}
-                type(picks):{}
-                """.format(criteria, picks, type(picks))
+                """.format(
+            criteria, picks
+        )
         debug_print(msg, level=1, V=VERBOSITY)
 
         sel_g = [g_list[g_idx] for g_idx in picks]
@@ -190,15 +196,19 @@ def mrai_algorithm(g_list,
         criteria = [criterion(g) for g in g_list]
 
         for thr in thresholds:
-            sel_g = [g_list[g_idx] for g_idx, c in enumerate(criteria) if c > thr]      # Available graphs = Graphs that satisfy the criterion
+            sel_g = [
+                g_list[g_idx] for g_idx, c in enumerate(criteria) if c > thr
+            ]  # Available graphs = Graphs that satisfy the criterion
 
             if stopping_criterion(sel_g):
-                mod_ids = [get_nodes(g, kind='model') for g in sel_g]
+                mod_ids = [get_nodes(g, kind="model") for g in sel_g]
                 msg = """
                 We have selected    {0} model(s) 
                 at threshold:       {1:.2f}
                 with model ids:     {2}
-                """.format(len(sel_g), thr, mod_ids)
+                """.format(
+                    len(sel_g), thr, mod_ids
+                )
                 debug_print(msg, level=0, V=VERBOSITY)
                 break
 
@@ -212,23 +222,33 @@ def mrai_algorithm(g_list,
         msg = """
         Multi-target case:      
         with target attributes: {}
-        """.format(q_targ)
+        """.format(
+            q_targ
+        )
         debug_print(msg, V=VERBOSITY)
 
         sel_g = []
         avl_g = g_list
         for i in range(len(q_targ)):
-            tgt_q_targ = q_targ[i:i+1]
-            tgt_avoid_src = q_targ[0:i] + q_targ[i+1:]
+            tgt_q_targ = q_targ[i : i + 1]
+            tgt_avoid_src = q_targ[0:i] + q_targ[i + 1 :]
             tgt_q_miss = q_miss + tgt_avoid_src
 
             tgt_q_code = query_to_code(q_desc, tgt_q_targ, q_miss=tgt_q_miss)
 
             msg = """
             tgt_q_code:     {}
-            """.format(tgt_q_code)
+            """.format(
+                tgt_q_code
+            )
             debug_print(msg, level=2, V=VERBOSITY)
-            tgt_g, avl_g = mrai_algorithm(avl_g, tgt_q_code, avoid_src=tgt_avoid_src, return_avl_g=True, merge_nodes=False)
+            tgt_g, avl_g = mrai_algorithm(
+                avl_g,
+                tgt_q_code,
+                avoid_src=tgt_avoid_src,
+                return_avl_g=True,
+                merge_nodes=False,
+            )
 
             sel_g.append(tgt_g)
 
@@ -238,7 +258,9 @@ def mrai_algorithm(g_list,
         msg = """
         nb_tgt:     {}
         We expect one or more targets.
-        """.format(nb_tgt)
+        """.format(
+            nb_tgt
+        )
         raise ValueError(msg)
 
     if imputation_nodes:
@@ -251,113 +273,6 @@ def mrai_algorithm(g_list,
         return res_g
 
 
-def mrai_algorithm_old(
-    g_list,
-    q_code,
-    init_threshold=1.0,
-    stepsize=0.1,
-    complete=False,
-    return_leftovers=False,
-    predict_targ_and_missing=False,
-    imputation_nodes=True,
-    merge_nodes=True
-):
-    q_desc, q_targ, q_miss = code_to_query(q_code)
-
-    if complete:
-
-        def stopping_criterion(list_of_graphs):
-            outputs = (get_ids(g, kind="tgt") for g in list_of_graphs)
-            outputs = reduce(set.union, outputs, set())
-
-            return len(outputs.intersection(q_targ)) == len(q_targ)
-
-    else:
-
-        def stopping_criterion(list_of_graphs):
-            return len(list_of_graphs) > 0
-
-    def criterion(g):
-        tgt = get_ids(g, kind='tgt')
-
-        if predict_targ_and_missing:
-            relevance = int(len((set(q_targ).union(q_miss)).intersection(tgt)) > 0)
-        else:
-            relevance = int(len(set(q_targ).intersection(tgt)) > 0)
-
-        feature_importances_available = [
-            g.nodes()[node]["fi"]
-            for node, in_degree in g.in_degree()
-            if in_degree == 0
-            if g.nodes()[node]["kind"] == "data"
-            if g.nodes()[node]["idx"] in q_desc
-        ]
-
-        feature_importances_tgt_input = [
-            g.nodes()[node]["fi"]
-            for node, in_degree in g.in_degree()
-            if in_degree == 0
-            if g.nodes()[node]["kind"] == "data"
-            if g.nodes()[node]["idx"] in q_targ
-        ]
-
-        src_quantifier_pos = np.sum(feature_importances_available)
-        src_quantifier_neg = (1-np.sum(feature_importances_tgt_input))
-
-        relevance_criterion = relevance * src_quantifier_pos * src_quantifier_neg
-
-        model = [n for n in g.nodes() if n.startswith('f')]
-        msg = """
-        model:                      {}
-        relevance:                  {}
-        src_quantifier_pos:         {}
-        src_quantifier_neg:         {}
-        result:                     {}
-        """.format(
-            model, relevance, src_quantifier_pos, src_quantifier_neg, relevance_criterion
-        )
-        if relevance_criterion > 0:
-            debug_print(msg, level=1, V=VERBOSITY)
-
-        return relevance_criterion
-
-    thresholds = np.clip(np.arange(init_threshold, -1-stepsize, -stepsize), -1, 1)
-
-    for thr in thresholds:
-        g_relevant = [g for g in g_list if criterion(g) > thr]
-
-        if stopping_criterion(g_relevant):
-            mod_ids = [
-                [n for n in g.nodes() if g.nodes()[n]["kind"] == "model"]
-                for g in g_relevant
-            ]
-
-            msg = """
-                        We have selected    {0} model(s) 
-                        at threshold:       {1:.2f}
-                        with model ids:     {2}
-                        """.format(
-                len(g_relevant), thr, mod_ids
-            )
-            debug_print(msg, level=0, V=VERBOSITY)
-            break
-
-    if return_leftovers:
-        g_leftovers = [g for g in g_list if g not in g_relevant]
-
-    g_relevant = [copy.deepcopy(g) for g in g_relevant]
-    result = reduce(nx.compose, g_relevant)
-
-    if imputation_nodes:
-        add_imputation_nodes(result, q_desc)
-    if merge_nodes:
-        add_merge_nodes(result)
-    if return_leftovers:
-        return result, g_leftovers
-    else:
-        return result
-
-
 def it_algorithm(g_list, q_code, max_steps=4):
     def stopping_criterion(known_attributes, target_attributes):
         return len(set(target_attributes).difference(known_attributes)) == 0
@@ -366,10 +281,12 @@ def it_algorithm(g_list, q_code, max_steps=4):
     q_desc, q_targ, q_miss = code_to_query(q_code)
 
     avl_desc = set(q_desc)
-    avl_targ = set(q_targ+q_miss)
-    avl_atts = set(q_desc+q_targ+q_miss)
+    avl_targ = set(q_targ + q_miss)
+    avl_atts = set(q_desc + q_targ + q_miss)
 
-    avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts) # Query based on availability
+    avl_q = query_to_code(
+        avl_desc, avl_targ, atts=avl_atts
+    )  # Query based on availability
 
     avl_g = g_list
 
@@ -378,23 +295,29 @@ def it_algorithm(g_list, q_code, max_steps=4):
     res_g = nx.DiGraph()
 
     for step in range(max_steps):
-        last = step == max_steps-1
+        last = step == max_steps - 1
 
         if last:
-            avl_targ = set(q_targ).difference(avl_desc) # All targets that are not yet known
+            avl_targ = set(q_targ).difference(
+                avl_desc
+            )  # All targets that are not yet known
             avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)
-            greedy = False # Get all remaining targets
+            greedy = False  # Get all remaining targets
 
         # Get next step
-        nxt_g, avl_g = mrai_algorithm(avl_g, avl_q, return_avl_g=True, greedy=greedy, avoid_src=q_targ)
+        nxt_g, avl_g = mrai_algorithm(
+            avl_g, avl_q, return_avl_g=True, greedy=greedy, avoid_src=q_targ
+        )
         res_g = nx.compose(res_g, nxt_g)
 
         # Update query
-        nxt_g_targ = get_ids(nxt_g, kind='targ')
+        nxt_g_targ = get_ids(nxt_g, kind="targ")
 
         avl_desc = avl_desc.union(nxt_g_targ)
         avl_targ = avl_targ.difference(nxt_g_targ)
-        avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)  # Query based on availability
+        avl_q = query_to_code(
+            avl_desc, avl_targ, atts=avl_atts
+        )  # Query based on availability
 
         if stopping_criterion(avl_desc, q_targ):
             break
@@ -404,10 +327,10 @@ def it_algorithm(g_list, q_code, max_steps=4):
     return res_g
 
 
-def rw_algorithm(g_list, q_code, max_steps=4):
-    def stopping_criterion(avl_targ, step):
-        reason_01 = len(avl_targ) == 0
-        reason_02 = step == max_steps-1
+def rw_algorithm(g_list, q_code, max_steps=4, random_state=997):
+    def stopping_criterion(targets, step_number):
+        reason_01 = len(targets) == 0
+        reason_02 = step_number == max_steps - 1
         return reason_01 or reason_02
 
     # Init
@@ -416,132 +339,54 @@ def rw_algorithm(g_list, q_code, max_steps=4):
     q_desc, q_targ, q_miss = code_to_query(q_code)
     avl_desc = set(q_desc)
     avl_targ = set(q_targ)
+    sel_targ = set([])
     avl_atts = set(q_desc + q_targ + q_miss)
-    avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts) # Query based on availability
+    avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)
 
     avl_g = g_list
-    res_g = nx.DiGraph()
+    sel_g = []
 
     for step in range(max_steps):
         # Get next step
-        nxt_g, avl_g = mrai_algorithm(avl_g, avl_q, return_avl_g=True, avoid_src=q_targ, stochastic=True, merge_nodes=False, imputation_nodes=False)
-        res_g = nx.compose(nxt_g, res_g)
+        nxt_g, avl_g = mrai_algorithm(
+            avl_g,
+            avl_q,
+            return_avl_g=True,
+            avoid_src=q_targ,
+            stochastic=True,
+            merge_nodes=False,
+            imputation_nodes=False,
+            random_state=random_state,
+        )
+        sel_g.insert(0, nxt_g)
 
         # Update query
-        nxt_g_desc = get_ids(nxt_g, kind='desc')
+        nxt_g_desc = get_ids(nxt_g, kind="desc")
+        nxt_g_targ = get_ids(nxt_g, kind="targ")
+
+        sel_targ = sel_targ.union(nxt_g_targ)
 
         avl_desc = avl_desc
-        avl_targ = nxt_g_desc.difference(avl_desc)                  # This is limiting
-        avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)    # Query based on availability
+        avl_targ = set(q_miss).difference(sel_targ).intersection(nxt_g_desc)
+        avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)
 
         if stopping_criterion(avl_targ, step):
             break
 
-    add_merge_nodes(res_g)
-    add_imputation_nodes(res_g, q_desc)
+    # Composing
+    res_g = nx.DiGraph()
+    avl_desc = set(q_desc)
+    for g in sel_g:
+        add_imputation_nodes(g, avl_desc)
+        res_g = nx.compose(res_g, g)
 
+        g_targ = get_ids(g, kind="targ")
+        avl_desc = avl_desc.union(g_targ)
+
+    add_merge_nodes(res_g)
     res_g = _prune(res_g, q_targ)
 
     return res_g
-
-
-def it_algorithm_old(g_list, q_code, max_steps=4):
-    def stopping_criterion(known_attributes, target_attributes):
-        return len(set(target_attributes).difference(known_attributes)) == 0
-
-    # Init
-    q_desc, q_targ, q_miss = code_to_query(q_code)
-
-    avl_desc = set(q_desc)
-    avl_targ = set(q_targ+q_miss)
-    avl_miss = set([])
-
-    avl_grph = g_list
-
-    g_res = nx.DiGraph()
-
-    for step in range(max_steps):
-
-        last = step + 1 == max_steps  # Bool that indicates the last step
-
-        if last:
-            """
-            avl_desc = whatever you know at this point.
-            So, given this is the last step, whatever attribute that was present in
-            the original target set, but is not yet known at this pointm is what you should
-            focus on in this last step.
-            """
-            # avl_desc = what you know at this point.
-            # Hence, whatever you do not know from the original targets, is what you shou
-            avl_targ = set(q_targ).difference(avl_desc)
-
-        msg = """
-        Starting step:      {}
-        Available targets:  {}
-        Available desc   :  {}
-        Available miss:     {}
-        """.format(
-            step, avl_targ, avl_desc, avl_miss
-        )
-        debug_print(msg, level=0, V=VERBOSITY)
-
-        # Do things
-        q_code = query_to_code(avl_desc, avl_targ, avl_miss)
-
-        g_nxt, avl_grph = mrai_algorithm(avl_grph, q_code, return_avl_g=True, greedy=not last, avoid_src=q_targ)
-
-        g_res = nx.compose(g_res, g_nxt)
-
-        # Prepare next step
-        g_nxt_targ = get_ids(g_nxt, kind="targ")
-
-        avl_desc = avl_desc.union(g_nxt_targ)
-        avl_miss = avl_miss.difference((g_nxt_targ))
-        avl_targ = avl_targ.difference(g_nxt_targ)
-
-        if stopping_criterion(avl_desc, q_targ):
-            break
-
-    g_res = _prune(g_res, q_targ)
-
-    return g_res
-
-
-def rw_algorithm_old(g_list, q_code, max_chain_size=5):
-    # Init
-    q_desc, q_targ, q_miss = code_to_query(q_code)
-
-    avl_desc = set(q_desc)
-    avl_targ = set(q_targ)
-
-    avl_grph = g_list
-
-    g_res = nx.DiGraph()
-
-    for step in range(max_chain_size):
-        q_code = query_to_code(avl_desc, avl_targ, [])
-
-        g_nxt = mrai_algorithm(avl_grph, q_code, stochastic=True)
-        g_res = nx.compose(g_res, g_nxt)
-
-        g_nxt_mods = set(
-            [n for n in g_nxt.nodes() if g_nxt.nodes()[n]["kind"] == "model"]
-        )
-        g_res_desc, g_res_targ = (
-            get_ids(g_res, kind="desc"),
-            get_ids(g_res, kind="targ"),
-        )
-
-        avl_desc = avl_desc
-        avl_targ = g_res_desc.difference(avl_desc).union(
-            avl_targ.difference(g_res_targ)
-        )
-
-        avl_grph = [g for g in avl_grph if len(g_nxt_mods.intersection(set(g))) > 0]
-
-    g_res = _prune(g_res)
-
-    return g_res
 
 
 def _prune(g, tgt_nodes=None):
@@ -583,7 +428,7 @@ def _prune(g, tgt_nodes=None):
     return g
 
 
-def _pick(criteria, n=1):
+def _pick(criteria, n=1, random_state=997):
     """
     Interpret an array of appropriateness scores as a distribution
     corresponding to the probability of a certain model being selected.
@@ -602,7 +447,8 @@ def _pick(criteria, n=1):
                 List of indices that were picked
     """
 
-    criteria += abs(np.min([0, np.min(criteria)])) # Shift in case of negative values
+    np.random.seed(random_state)
+    criteria += abs(np.min([0, np.min(criteria)]))  # Shift in case of negative values
     norm = np.linalg.norm(criteria, 1)
 
     if norm > 0:
