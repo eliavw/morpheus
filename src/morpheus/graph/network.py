@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 import networkx as nx
 import numpy as np
 
@@ -225,13 +227,13 @@ def convert_data_node_to_imputation_node(G, data_node_label):
 
     mapping = {}
     mapping[data_node_label] = "I({})".format(data_node_label)
-    merge_node_label = mapping[data_node_label]
+    imputation_node_label = mapping[data_node_label]
 
     nx.relabel_nodes(G, mapping, copy=False)
 
-    G.nodes()[merge_node_label]["shape"] = '"invtriangle"'
-    G.nodes()[merge_node_label]["kind"] = "imputation"
-    # G.nodes()[merge_node_label]["function"] = np.mean
+    G.nodes()[imputation_node_label]["shape"] = '"invtriangle"'
+    G.nodes()[imputation_node_label]["kind"] = "imputation"
+    # G.nodes()[imputation_node_label]["function"] = np.mean
 
     return mapping[data_node_label]
 

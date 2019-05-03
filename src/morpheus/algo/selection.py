@@ -5,10 +5,11 @@ from sklearn.cluster.bicluster import SpectralBiclustering
 from sklearn.ensemble import *
 
 
-def base_selection_algorithm(metadata, settings):
+def base_selection_algorithm(metadata, settings, random_state=997):
     """
     The easiest selection algorithm.
     """
+    np.random.seed(random_state)
     nb_atts = metadata["nb_atts"]
     nb_tgt = settings.get("param", 1)
     nb_iterations = settings.get("its", 1)

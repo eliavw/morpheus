@@ -5,21 +5,29 @@ from functools import partial
 
 from morpheus.composition import o, x
 
+from morpheus.utils import debug_print
+
+VERBOSITY = 0
+
 
 def base_inference_algorithm(g):
+
     # Convert the graph to its functions
     sorted_list = list(nx.topological_sort(g))
-    print(sorted_list)
+
+    msg = """
+    sorted_list:    {}
+    """.format(sorted_list)
+    debug_print(msg, level=1, V=VERBOSITY)
     functions = {}
 
     for node_name in sorted_list:
         node = g.nodes(data=True)[node_name]
-        print(node_name)
+
         if node.get("kind", None) == "data":
             if len(nx.ancestors(g, node_name)) == 0:
                 functions[node_name] = _select(node["idx"])
             else:
-
                 # This is pretty much identical to what happens in the merge node
                 previous_node = [t[0] for t in g.in_edges(node_name)][
                     0
@@ -31,6 +39,9 @@ def base_inference_algorithm(g):
                 functions[node_name] = o(
                     _select(relevant_idx), functions[previous_node]
                 )
+
+        elif node.get("kind", None) == "imputation":
+            functions[node_name] = node["function"]
 
         elif node.get("kind", None) == "model":
 
@@ -46,7 +57,7 @@ def base_inference_algorithm(g):
             merge_idx = node["idx"]
             previous_nodes = [t[0] for t in g.in_edges(node_name)]
             previous_t_idx = [g.nodes()[n]["tgt"] for n in previous_nodes]
-            print(previous_t_idx)
+
             inputs = [(functions[n], t) for n, t in zip(previous_nodes, previous_t_idx)]
 
             inputs = [o(_select(t_idx.index(merge_idx)), f) for f, t_idx in inputs]

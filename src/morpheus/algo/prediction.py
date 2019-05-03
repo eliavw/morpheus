@@ -12,7 +12,7 @@ from morpheus.utils import debug_print
 VERBOSITY = 0
 
 
-def mi_algorithm(g_list, q_code):
+def mi_algorithm(g_list, q_code, random_state=None):
     q_desc, q_targ, q_miss = code_to_query(q_code)
 
     def criterion(g):
@@ -38,7 +38,7 @@ def mi_algorithm(g_list, q_code):
     return result
 
 
-def ma_algorithm(g_list, q_code, init_threshold=1.0, stepsize=0.1):
+def ma_algorithm(g_list, q_code, init_threshold=1.0, stepsize=0.1, random_state=None):
     q_desc, q_targ, q_miss = code_to_query(q_code)
 
     def criterion(g):
@@ -273,7 +273,7 @@ def mrai_algorithm(
         return res_g
 
 
-def it_algorithm(g_list, q_code, max_steps=4):
+def it_algorithm(g_list, q_code, max_steps=4, random_state=997):
     def stopping_criterion(known_attributes, target_attributes):
         return len(set(target_attributes).difference(known_attributes)) == 0
 
@@ -306,7 +306,7 @@ def it_algorithm(g_list, q_code, max_steps=4):
 
         # Get next step
         nxt_g, avl_g = mrai_algorithm(
-            avl_g, avl_q, return_avl_g=True, greedy=greedy, avoid_src=q_targ
+            avl_g, avl_q, return_avl_g=True, greedy=greedy, avoid_src=q_targ, random_state=random_state
         )
         res_g = nx.compose(res_g, nxt_g)
 
