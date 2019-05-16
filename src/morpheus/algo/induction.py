@@ -13,8 +13,8 @@ def base_induction_algorithm(data, m_codes):
 
     # Init
     assert isinstance(data, np.ndarray)
-    n, m = data.shape
-    attributes = list(range(m))
+    n_rows, n_cols = data.shape
+    attributes = list(range(n_cols))
     m_list = []
     all_desc_ids, all_targ_ids = [], []
 
@@ -45,8 +45,10 @@ def base_induction_algorithm(data, m_codes):
             raise ValueError(msg)
 
         # Learn a model for desc_ids-targ_ids
-        m = _learn_model(data, desc_ids, targ_ids, learner, max_depth=5, n_estimators=5)
-        m_list.append(m)
+        n_cols = _learn_model(
+            data, desc_ids, targ_ids, learner, max_depth=5, n_estimators=5
+        )
+        m_list.append(n_cols)
 
     return m_list
 

@@ -306,7 +306,12 @@ def it_algorithm(g_list, q_code, max_steps=4, random_state=997):
 
         # Get next step
         nxt_g, avl_g = mrai_algorithm(
-            avl_g, avl_q, return_avl_g=True, greedy=greedy, avoid_src=q_targ, random_state=random_state
+            avl_g,
+            avl_q,
+            return_avl_g=True,
+            greedy=greedy,
+            avoid_src=q_targ,
+            random_state=random_state,
         )
         res_g = nx.compose(res_g, nxt_g)
 

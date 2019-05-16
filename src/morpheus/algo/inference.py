@@ -17,7 +17,9 @@ def base_inference_algorithm(g):
 
     msg = """
     sorted_list:    {}
-    """.format(sorted_list)
+    """.format(
+        sorted_list
+    )
     debug_print(msg, level=1, V=VERBOSITY)
     functions = {}
 

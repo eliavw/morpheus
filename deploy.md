@@ -1,46 +1,43 @@
 # Deployment Information
 
-For use on a new machine, we use conda. On the original machine, we always work
-inside an isolated python environment, managed by conda. 
+We use conda for dependency management.
 
 ## Create
 
 Environment made with conda. To make an environment;
 
-`conda create --name <whatever> python=3.6`
-
-## Activate
-To go inside an environment, execute;
-
-`conda activate <whatever>` or
-`source activate <whatever>`
-
-Then, your terminal gets a prefix, like so;
-
-`$(whatever) user@machine:`
-
-indicating that you are now _inside_ of this environment.
+```bash
+conda create --name <whatever> python=3.7
+```
 
 ## Export
 This environment can be exported to a `.yml` file through the following command:
 
-`conda env export > environment.yml`
+```bash
+conda env export > environment.yml
+```
 
-Which creates the `.yml` file present in the root dir. Important: you need to execute this command _inside_ the environment, how else would conda know what environment you would be talking about?
+Which creates the `.yml` file present in the root dir.
+
+This really dumps the entire environment into the `.yml` file. This can be overkill. What we currently do _(until an easier workflow arrives)_ is that afterwards, we edit this dump to include only those packages which were manually installed and thus really necessary. Conda will take care of secondary dependencies automatically.
+
 
 ## Load
 To recreate this environment, it suffices to run;
 
-`conda env create -f environment.yml -n <whatever name you want>`
+```bash
+conda env create -f environment.yml -n <whatever>
+```
 
-Which presupposes that you have an anaconda install running on your own machine.
-In theory, this should be portable enough.
+Which presupposes that you have an anaconda/miniconda install running on your own machine.
 
-## Manually add to list in Jupyter
+## Add kernel to Jupyter
 
-Sometimes it works by installing jupyter in the environment itself. But sometimes it does not, for unclear reasons.
+To add this python environment to the list of Jupyter environments, do the following. 
+```bash
+source activate <whatever>
+python -m ipykernel install --user --name <whatever> --display-name "Py-<whatever>"
+```
 
-However, the clean way is the following;
+_N.b.: This requires ipykernel to be installed in the environment._
 
-`source activate myenv`
-`python -m ipykernel install --user --name myenv --display-name "Py(myenv)"`
