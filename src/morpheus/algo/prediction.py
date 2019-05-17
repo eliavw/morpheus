@@ -12,7 +12,7 @@ from morpheus.utils import debug_print
 VERBOSITY = 0
 
 
-def mi_algorithm(g_list, q_code, random_state=None):
+def mi_algorithm(g_list, q_code, random_state=997):
     q_desc, q_targ, q_miss = code_to_query(q_code)
 
     def criterion(g):
@@ -38,7 +38,7 @@ def mi_algorithm(g_list, q_code, random_state=None):
     return result
 
 
-def ma_algorithm(g_list, q_code, init_threshold=1.0, stepsize=0.1, random_state=None):
+def ma_algorithm(g_list, q_code, init_threshold=1.0, stepsize=0.1, random_state=997):
     q_desc, q_targ, q_miss = code_to_query(q_code)
 
     def criterion(g):

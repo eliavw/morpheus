@@ -5,22 +5,20 @@ from sklearn.cluster.bicluster import SpectralBiclustering
 from sklearn.ensemble import *
 
 
-def base_selection_algorithm(metadata, settings, random_state=997):
+def base_selection_algorithm(metadata, nb_targets=1, nb_iterations=1, random_state=997):
     """
     The easiest selection algorithm.
     """
     np.random.seed(random_state)
     nb_atts = metadata["nb_atts"]
-    nb_tgt = settings.get("param", 1)
-    nb_iterations = settings.get("its", 1)
 
-    nb_tgt = _set_nb_out_params_(nb_tgt, nb_atts)
+    nb_targets = _set_nb_out_params_(nb_targets, nb_atts)  # Consistency check
 
     att_idx = np.array(range(nb_atts))
     result = np.zeros((1, nb_atts))
 
     for it_idx in range(nb_iterations):
-        codes = _create_init(nb_atts, nb_tgt)
+        codes = _create_init(nb_atts, nb_targets)
 
         # Shuffle the results
         np.random.shuffle(att_idx)
@@ -31,21 +29,19 @@ def base_selection_algorithm(metadata, settings, random_state=997):
     return result[1:, :]
 
 
-def random_selection_algorithm(metadata, settings, random_state=997):
+def random_selection_algorithm(
+    metadata, nb_targets=1, nb_iterations=1, fraction_missing=0.2, random_state=997
+):
+
     np.random.seed(random_state)
-
     nb_atts = metadata["nb_atts"]
-    nb_tgt = settings.get("param", 1)
-    nb_iterations = settings.get("its", 1)
-    fraction_missing = settings.get("fraction", 0.2)
-
-    nb_tgt = _set_nb_out_params_(nb_tgt, nb_atts)
+    nb_targets = _set_nb_out_params_(nb_targets, nb_atts)
 
     att_idx = np.array(range(nb_atts))
     result = np.zeros((1, nb_atts))
 
     for it_idx in range(nb_iterations):
-        codes = _create_init(nb_atts, nb_tgt)
+        codes = _create_init(nb_atts, nb_targets)
         codes = _add_missing(codes, fraction=fraction_missing)
         codes = _ensure_desc_atts(codes)
 
@@ -92,19 +88,18 @@ def _ensure_desc_atts(m_codes):
     return m_codes
 
 
-def _set_nb_out_params_(param, nb_atts):
-    if (param > 0) & (param < 1):
-        nb_out_atts = int(np.ceil(param * nb_atts))
-    elif (param >= 1) & (param < nb_atts):
-        nb_out_atts = int(param)
+def _set_nb_out_params_(nb_targets, nb_atts):
+    if (nb_targets > 0) & (nb_targets < 1):
+        nb_out_atts = int(np.ceil(nb_targets * nb_atts))
+    elif (nb_targets >= 1) & (nb_targets < nb_atts):
+        nb_out_atts = int(nb_targets)
     else:
         msg = """
-        Impossible number of output attributes per model: {}\n
-        This means the value of settings['selection']['param'] was set
-        incorrectly.\n
-        Re-adjusted to default; one model per attribute.
+        Impossible number of output attributes per model: {}
+        This means the value of `nb_targets` was set incorrectly.
+        Re-adjusted to default=1; one model per attribute.
         """.format(
-            param
+            nb_targets
         )
         warnings.warn(msg)
         nb_out_atts = 1
