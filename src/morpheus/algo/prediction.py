@@ -216,6 +216,10 @@ def mrai_algorithm(
             avl_g = [g for g in g_list if g not in sel_g]
 
         sel_g = [copy.deepcopy(g) for g in sel_g]
+
+        for g in sel_g:
+            add_imputation_nodes(g, q_desc)
+
         res_g = reduce(nx.compose, sel_g)
 
     elif nb_tgt > 1:
@@ -284,18 +288,14 @@ def it_algorithm(g_list, q_code, max_steps=4, random_state=997):
     avl_targ = set(q_targ + q_miss)
     avl_atts = set(q_desc + q_targ + q_miss)
 
-    avl_q = query_to_code(
-        avl_desc, avl_targ, atts=avl_atts
-    )  # Query based on availability
+    avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)
 
     avl_g = g_list
 
     greedy = True
-
-    res_g = nx.DiGraph()
-
+    sel_g = []
     for step in range(max_steps):
-        last = step == max_steps - 1
+        last = step == (max_steps - 1)
 
         if last:
             avl_targ = set(q_targ).difference(
@@ -311,22 +311,35 @@ def it_algorithm(g_list, q_code, max_steps=4, random_state=997):
             return_avl_g=True,
             greedy=greedy,
             avoid_src=q_targ,
+            imputation_nodes=True,
+            merge_nodes=False,
             random_state=random_state,
         )
-        res_g = nx.compose(res_g, nxt_g)
+        # IT goes from front to back
+        sel_g.append(nxt_g)
 
         # Update query
-        nxt_g_targ = get_ids(nxt_g, kind="targ")
+        nxt_targ = get_ids(nxt_g, kind="targ")
+        avl_desc = avl_desc.union(nxt_targ)
+        avl_targ = avl_targ.difference(nxt_targ)
 
-        avl_desc = avl_desc.union(nxt_g_targ)
-        avl_targ = avl_targ.difference(nxt_g_targ)
-        avl_q = query_to_code(
-            avl_desc, avl_targ, atts=avl_atts
-        )  # Query based on availability
+        avl_q = query_to_code(avl_desc, avl_targ, atts=avl_atts)
 
         if stopping_criterion(avl_desc, q_targ):
             break
 
+    # Composing
+    res_g = nx.DiGraph()
+    avl_desc = set(q_desc)
+    for g in sel_g:
+        print("AVL DESC: {}".format(avl_desc))
+        # add_imputation_nodes(g, avl_desc)
+        res_g = nx.compose(res_g, g)
+
+        g_targ = get_ids(g, kind="targ")
+        avl_desc = avl_desc.union(g_targ)
+
+    add_merge_nodes(res_g)
     res_g = _prune(res_g, q_targ)
 
     return res_g
@@ -339,7 +352,6 @@ def rw_algorithm(g_list, q_code, max_steps=4, random_state=997):
         return reason_01 or reason_02
 
     # Init
-    greedy = True
 
     q_desc, q_targ, q_miss = code_to_query(q_code)
     avl_desc = set(q_desc)
@@ -363,6 +375,7 @@ def rw_algorithm(g_list, q_code, max_steps=4, random_state=997):
             imputation_nodes=False,
             random_state=random_state,
         )
+        # RW goes from back to front
         sel_g.insert(0, nxt_g)
 
         # Update query
@@ -382,6 +395,7 @@ def rw_algorithm(g_list, q_code, max_steps=4, random_state=997):
     res_g = nx.DiGraph()
     avl_desc = set(q_desc)
     for g in sel_g:
+        print("AVL DESC: {}".format(avl_desc))
         add_imputation_nodes(g, avl_desc)
         res_g = nx.compose(res_g, g)
 

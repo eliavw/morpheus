@@ -6,6 +6,10 @@ import numpy as np
 from itertools import product
 from .graphviz import fix_layout
 
+from morpheus.utils import debug_print
+
+VERBOSITY = 0
+
 
 def model_to_graph(model, idx=0):
     """
@@ -216,6 +220,14 @@ def add_imputation_nodes(G, q_desc):
         if in_degree == 0
         if G.nodes()[node]["idx"] not in q_desc
     ]
+
+    msg = """
+    Adding imputation nodes at: {}
+    All nodes in g: {}
+    """.format(
+        relevant_nodes, list(G.nodes)
+    )
+    debug_print(msg, level=1, V=VERBOSITY)
 
     for node in relevant_nodes:
         convert_data_node_to_imputation_node(G, node)

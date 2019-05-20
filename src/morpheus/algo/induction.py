@@ -90,8 +90,8 @@ def _learn_model(data, desc_ids, targ_ids, learner, **kwargs):
 
     i, o = data[:, desc_ids], data[:, targ_ids]
 
-    if i.shape[1] == 1:
-        i = i.ravel()
+    if i.ndim == 1:
+        i = i.reshape(-1, 1)
     if o.shape[1] == 1:
         o = o.ravel()
 

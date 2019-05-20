@@ -10,15 +10,15 @@ def base_selection_algorithm(metadata, nb_targets=1, nb_iterations=1, random_sta
     The easiest selection algorithm.
     """
     np.random.seed(random_state)
-    nb_atts = metadata["nb_atts"]
+    n_attributes = metadata["n_attributes"]
 
-    nb_targets = _set_nb_out_params_(nb_targets, nb_atts)  # Consistency check
+    nb_targets = _set_nb_out_params_(nb_targets, n_attributes)  # Consistency check
 
-    att_idx = np.array(range(nb_atts))
-    result = np.zeros((1, nb_atts))
+    att_idx = np.array(range(n_attributes))
+    result = np.zeros((1, n_attributes))
 
     for it_idx in range(nb_iterations):
-        codes = _create_init(nb_atts, nb_targets)
+        codes = _create_init(n_attributes, nb_targets)
 
         # Shuffle the results
         np.random.shuffle(att_idx)
@@ -34,14 +34,14 @@ def random_selection_algorithm(
 ):
 
     np.random.seed(random_state)
-    nb_atts = metadata["nb_atts"]
-    nb_targets = _set_nb_out_params_(nb_targets, nb_atts)
+    n_attributes = metadata["n_attributes"]
+    nb_targets = _set_nb_out_params_(nb_targets, n_attributes)
 
-    att_idx = np.array(range(nb_atts))
-    result = np.zeros((1, nb_atts))
+    att_idx = np.array(range(n_attributes))
+    result = np.zeros((1, n_attributes))
 
     for it_idx in range(nb_iterations):
-        codes = _create_init(nb_atts, nb_targets)
+        codes = _create_init(n_attributes, nb_targets)
         codes = _add_missing(codes, fraction=fraction_missing)
         codes = _ensure_desc_atts(codes)
 

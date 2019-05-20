@@ -1,7 +1,9 @@
 import numpy as np
 
 from inspect import signature
+import warnings
 
+from networkx import NetworkXUnfeasible
 from sklearn.impute import SimpleImputer
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -12,7 +14,9 @@ import morpheus.algo.inference as inference
 
 from morpheus.algo.induction import base_induction_algorithm
 from morpheus.composition import o, x
+from morpheus.utils.encoding import encode_attribute
 from morpheus.graph import model_to_graph
+from morpheus.visuals import show_diagram
 
 
 class Morpheus(object):
@@ -45,6 +49,7 @@ class Morpheus(object):
         "inference": ["inference", "infr", "inf"],
         "classification": ["classification", "classifier", "clf", "c"],
         "regression": ["regression", "regressor", "rgr", "r"],
+        "metadata": ["metadata", "meta", "mtd", "md"],
     }
 
     def __init__(
@@ -76,11 +81,11 @@ class Morpheus(object):
         self.q_methods = []
 
         # Configurations
-        self.sel_cfg = self.default_config(self.selection_algorithm)
-        self.clf_cfg = self.default_config(self.classifier_algorithm)
-        self.rgr_cfg = self.default_config(self.regressor_algorithm)
-        self.prd_cfg = self.default_config(self.prediction_algorithm)
-        self.inf_cfg = self.default_config(self.inference_algorithm)
+        self.sel_cfg = self._default_config(self.selection_algorithm)
+        self.clf_cfg = self._default_config(self.classifier_algorithm)
+        self.rgr_cfg = self._default_config(self.regressor_algorithm)
+        self.prd_cfg = self._default_config(self.prediction_algorithm)
+        self.inf_cfg = self._default_config(self.inference_algorithm)
 
         self.configuration = dict(
             selection=self.sel_cfg,
@@ -88,13 +93,15 @@ class Morpheus(object):
             regression=self.rgr_cfg,
             prediction=self.prd_cfg,
             inference=self.inf_cfg,
-        )
+        )  # Collect all configs in one
 
-        self.update_config(random_state=random_state, **kwargs)
+        self._update_config(random_state=random_state, **kwargs)
+
+        self.metadata = dict()
 
         return
 
-    def fit(self, X):
+    def fit(self, X, **kwargs):
         """
         Fit a MERCS model on data X.
 
@@ -109,12 +116,13 @@ class Morpheus(object):
         """
         assert isinstance(X, np.ndarray)
 
-        self.metadata = self.default_metadata(X)
+        self.metadata = self._default_metadata(X)
+        self._update_metadata(**kwargs)
+
         self._fit_imputer(X)
 
-        self.m_codes = self.selection_algorithm(
-            self.metadata, **self.sel_cfg, random_state=self.random_state
-        )
+        # N.b.: We do not provide `random state` as a separate parameter, already contained in self.sel_cfg!
+        self.m_codes = self.selection_algorithm(self.metadata, **self.sel_cfg)
 
         self.m_list = self.induction_algorithm(
             X,
@@ -128,24 +136,34 @@ class Morpheus(object):
 
         return
 
-    def predict(self, X, q_code):
+    def predict(self, X, q_code=None):
+
+        if q_code is None:
+            q_code = self._default_q_code()
 
         # Make custom diagram
-        self.q_diagram = self.prediction_algorithm(
-            self.g_list, q_code, **self.prd_cfg, random_state=self.random_state
-        )
+        self.q_diagram = self.prediction_algorithm(self.g_list, q_code, **self.prd_cfg)
         self.q_diagram = self._add_imputer_function(self.q_diagram)
 
-        # Convert diagram to methods
-        self.q_methods = self.inference_algorithm(self.q_diagram)
+        # Convert diagram to methods.
+        try:
+            self.q_methods = self.inference_algorithm(self.q_diagram)
+        except NetworkXUnfeasible:
+            msg = """
+            Topological sort failed, investigate diagram to debug.
+            """
+            warnings.warn(msg)
 
         # Execute our custom function
 
         return
 
+    def show_q_diagram(self, kind="svg", fi_labels=False, ortho=False):
+        return show_diagram(self.q_diagram, kind=kind, fi_labels=fi_labels, ortho=ortho)
+
     # Configuration
     @staticmethod
-    def default_config(method):
+    def _default_config(method):
         config = {}
         sgn = signature(method)
 
@@ -154,21 +172,51 @@ class Morpheus(object):
                 config[key] = parameter.default
         return config
 
-    def update_config(self, **kwargs):
+    def _default_metadata(self, X):
+        if X.ndim != 2:
+            X = X.reshape(-1, 1)
+
+        n_rows, n_cols = X.shape
+
+        types = [X[0, 0].dtype for _ in range(n_cols)]
+        nominal_attributes = set(
+            [att for att, typ in enumerate(types) if self._is_nominal(typ)]
+        )
+        numeric_attributes = set(
+            [att for att, typ in enumerate(types) if self._is_numeric(typ)]
+        )
+
+        metadata = dict(
+            attributes=set(range(n_cols)),
+            n_attributes=n_cols,
+            types=types,
+            nominal_attributes=nominal_attributes,
+            numeric_attributes=numeric_attributes,
+        )
+        return metadata
+
+    def _update_config(self, **kwargs):
 
         for kind in self.configuration:
-            # Immediate matches
-            overlap = set(self.configuration[kind]).intersection(set(kwargs))
+            self._update_dictionary(self.configuration[kind], kind=kind, **kwargs)
 
-            for k in overlap:
-                self.configuration[kind][k] = kwargs[k]
+        return
 
-            # Parsed matches
-            parameter_map = self._parse_kwargs(kind=kind, **kwargs)
-            overlap = set(self.configuration[kind]).intersection(set(parameter_map))
+    def _update_metadata(self, **kwargs):
 
-            for k in overlap:
-                self.configuration[kind][k] = kwargs[parameter_map[k]]
+        self._update_dictionary(self.metadata, kind="metadata", **kwargs)
+
+        # Assure every attribute is `typed`
+        numeric = self.metadata["numeric_attributes"]
+        nominal = self.metadata["nominal_attributes"]
+        att_ids = self.metadata["attributes"]
+
+        # If not every attribute is accounted for, set to numeric type (default)
+        if len(nominal) + len(numeric) != len(att_ids):
+            numeric = att_ids - nominal
+            self._update_dictionary(
+                self.metadata, kind="metadata", numeric_attributes=numeric
+            )
 
         return
 
@@ -185,22 +233,21 @@ class Morpheus(object):
 
         return parameter_map
 
-    def default_metadata(self, X):
-        if X.ndim != 2:
-            X = X.reshape(-1, 1)
-        n_rows, n_cols = X.shape
+    def _update_dictionary(self, dictionary, kind=None, **kwargs):
+        # Immediate matches
+        overlap = set(dictionary).intersection(set(kwargs))
 
-        types = [X[0, 0].dtype for _ in range(n_cols)]
-        nominal_attributes = [self._is_nominal(t) for t in types]
-        numeric_attributes = [self._is_numeric(t) for t in types]
+        for k in overlap:
+            dictionary[k] = kwargs[k]
 
-        metadata = dict(
-            n_attributes=n_cols,
-            types=types,
-            nominal_attributes=nominal_attributes,
-            numeric_attributes=numeric_attributes,
-        )
-        return metadata
+        if kind is not None:
+            # Parsed matches
+            parameter_map = self._parse_kwargs(kind=kind, **kwargs)
+            overlap = set(dictionary).intersection(set(parameter_map))
+
+            for k in overlap:
+                dictionary[k] = kwargs[parameter_map[k]]
+        return
 
     @staticmethod
     def _is_nominal(t):
@@ -265,3 +312,10 @@ class Morpheus(object):
         a.fill(np.nan)
 
         return a
+
+    def _default_q_code(self):
+
+        q_code = np.zeros(self.metadata["n_attributes"])
+        q_code[-1] = encode_attribute(1, [0], [1])  # Set last attribute as target
+
+        return q_code
