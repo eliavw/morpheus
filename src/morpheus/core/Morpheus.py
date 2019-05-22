@@ -12,11 +12,16 @@ import morpheus.algo.selection as selection
 import morpheus.algo.prediction as prediction
 import morpheus.algo.inference as inference
 
+from morpheus.algo.inference import get_predict
 from morpheus.algo.induction import base_induction_algorithm
 from morpheus.composition import o, x
 from morpheus.utils.encoding import encode_attribute
 from morpheus.graph import model_to_graph
 from morpheus.visuals import show_diagram
+
+DESC_ENCODING = encode_attribute(1, [1], [2])
+TARG_ENCODING = encode_attribute(2, [1], [2])
+MISS_ENCODING = encode_attribute(0, [1], [2])
 
 
 class Morpheus(object):
@@ -79,6 +84,7 @@ class Morpheus(object):
 
         self.q_diagram = None
         self.q_methods = []
+        self.q_predict = None
 
         # Configurations
         self.sel_cfg = self._default_config(self.selection_algorithm)
@@ -141,25 +147,38 @@ class Morpheus(object):
         if q_code is None:
             q_code = self._default_q_code()
 
+        # Adjust data
+        q_desc_ids = np.where(q_code == DESC_ENCODING)[0].tolist()
+        q_targ_ids = np.where(q_code == TARG_ENCODING)[0].tolist()
+        if X.shape[1] == len(q_code):
+            # Assumption: User gives array with all attributes
+            X = X[:, q_desc_ids]
+        else:
+            # Assumption: User gives array with only descriptive attributes
+            assert X.shape[1] == len(q_desc_ids)
+
         # Make custom diagram
         self.q_diagram = self.prediction_algorithm(self.g_list, q_code, **self.prd_cfg)
         self.q_diagram = self._add_imputer_function(self.q_diagram)
 
         # Convert diagram to methods.
         try:
-            self.q_methods = self.inference_algorithm(self.q_diagram)
+            self.q_methods = self.inference_algorithm(
+                self.q_diagram, q_desc_ids=q_desc_ids
+            )
         except NetworkXUnfeasible:
             msg = """
             Topological sort failed, investigate diagram to debug.
             """
             warnings.warn(msg)
 
-        # Execute our custom function
+        # Custom predict function
+        self.q_predict = get_predict(self.q_methods, q_targ_ids)
 
-        return
+        return self.q_predict(X)
 
-    def show_q_diagram(self, kind="svg", fi_labels=False, ortho=False):
-        return show_diagram(self.q_diagram, kind=kind, fi_labels=fi_labels, ortho=ortho)
+    def show_q_diagram(self, kind="svg", fi=False, ortho=False):
+        return show_diagram(self.q_diagram, kind=kind, fi=fi, ortho=ortho)
 
     # Configuration
     @staticmethod
@@ -316,6 +335,6 @@ class Morpheus(object):
     def _default_q_code(self):
 
         q_code = np.zeros(self.metadata["n_attributes"])
-        q_code[-1] = encode_attribute(1, [0], [1])  # Set last attribute as target
+        q_code[-1] = TARG_ENCODING
 
         return q_code

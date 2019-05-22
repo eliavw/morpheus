@@ -30,12 +30,20 @@ def base_selection_algorithm(metadata, nb_targets=1, nb_iterations=1, random_sta
 
 
 def random_selection_algorithm(
-    metadata, nb_targets=1, nb_iterations=1, fraction_missing=0.2, random_state=997
+    metadata,
+    nb_targets=1,
+    nb_iterations=1,
+    fraction_missing=0.2,
+    nb_desc=None,
+    random_state=997,
 ):
 
     np.random.seed(random_state)
     n_attributes = metadata["n_attributes"]
     nb_targets = _set_nb_out_params_(nb_targets, n_attributes)
+
+    if nb_desc is not None:
+        fraction_missing = (n_attributes - nb_desc) / n_attributes
 
     att_idx = np.array(range(n_attributes))
     result = np.zeros((1, n_attributes))

@@ -102,6 +102,8 @@ def node_label(idx, kind="function"):
         c = "f"
     elif kind in {"data"}:
         c = "d"
+    elif kind in {"result"}:
+        c = "r"
     else:
         msg = """
         Did not recognize kind:     {}
@@ -173,6 +175,7 @@ def convert_positions_to_dot_format(G):
     return G
 
 
+# Add merge nodes
 def add_merge_nodes(G):
     relevant_nodes = [
         node
@@ -212,6 +215,7 @@ def convert_data_node_to_merge_node(G, data_node_label):
     return mapping[data_node_label]
 
 
+# Add imputation nodes
 def add_imputation_nodes(G, q_desc):
     relevant_nodes = [
         node
@@ -257,6 +261,7 @@ def place_original_data_node_behind_merge_node(G, original_node, merge_node_labe
     return G
 
 
+# Utils
 def get_ids(g, kind="desc"):
     if kind in {"s", "src", "source", "d", "desc", "descriptive"}:
         r = [

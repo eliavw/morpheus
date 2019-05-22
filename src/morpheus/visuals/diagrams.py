@@ -45,8 +45,8 @@ def dotstring_to_image(dotstring):
     return f_img, f_vec
 
 
-def show_diagram(diagram, kind="svg", fi_labels=False, ortho=False):
-    dotstring = diagram_to_dotstring(diagram, fi_labels=fi_labels, ortho=ortho)
+def show_diagram(diagram, kind="svg", fi=False, ortho=False):
+    dotstring = diagram_to_dotstring(diagram, fi_labels=fi, ortho=ortho)
 
     f_img, f_vec = dotstring_to_image(dotstring)
 
