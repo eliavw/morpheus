@@ -8,7 +8,7 @@ from morpheus.composition import o, x
 
 from morpheus.utils import debug_print
 
-VERBOSITY = 0
+VERBOSITY = 1
 
 
 def base_inference_algorithm(g, q_desc_ids=None):
@@ -28,6 +28,8 @@ def base_inference_algorithm(g, q_desc_ids=None):
         # desc ids not provided => all attributes which are diagrammatically identified as descriptive, are assumed
         # to be given as inputs
         q_desc_ids = list(get_ids(g, kind="desc"))
+        #q_desc_ids.sort()
+        print(q_desc_ids)
 
     for node_name in sorted_list:
         node = g.nodes(data=True)[node_name]
@@ -52,11 +54,10 @@ def base_inference_algorithm(g, q_desc_ids=None):
             functions[node_name] = node["function"]
 
         elif node.get("kind", None) == "model":
-
             previous_nodes = [t[0] for t in g.in_edges(node_name)]
+            inputs = {g.nodes()[n]["tgt"][0]: functions[n] for n in previous_nodes}
+            inputs = [inputs[k] for k in sorted(inputs)] # We need to sort to get the inputs in the correct order.
 
-            print(functions.keys())
-            inputs = [functions[n] for n in previous_nodes]
             inputs = o(np.transpose, x(*inputs, return_type=np.array))
             f = node["function"]
             functions[node_name] = o(f, inputs)

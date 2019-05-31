@@ -180,7 +180,9 @@ class Morpheus(object):
         self.q_compose = CompositeModel(self.q_diagram, self.q_methods, self.q_targ_ids)
 
         if X.shape[1] != len(self.q_compose.desc_ids):
-            X = X[:, self.overlapping_indices(self.q_desc_ids, self.q_compose.desc_ids)]
+            indices = self.overlapping_indices(self.q_desc_ids, self.q_compose.desc_ids)
+            print("Retain indices: {}".format(indices))
+            X = X[:, indices]
 
         return self.q_compose.predict(X)
 

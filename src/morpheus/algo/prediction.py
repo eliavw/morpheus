@@ -87,7 +87,7 @@ def ma_algorithm(g_list, q_code, init_threshold=1.0, stepsize=0.1, random_state=
             """.format(
                 len(g_relevant), thr
             )
-            debug_print(msg, level=0, V=VERBOSITY)
+            debug_print(msg, level=1, V=VERBOSITY)
             break
 
     g_relevant = [copy.deepcopy(g) for g in g_relevant]
@@ -209,7 +209,7 @@ def mrai_algorithm(
                 """.format(
                     len(sel_g), thr, mod_ids
                 )
-                debug_print(msg, level=0, V=VERBOSITY)
+                debug_print(msg, level=1, V=VERBOSITY)
                 break
 
         if return_avl_g:
@@ -332,7 +332,10 @@ def it_algorithm(g_list, q_code, max_steps=4, random_state=997):
     res_g = nx.DiGraph()
     avl_desc = set(q_desc)
     for g in sel_g:
-        print("AVL DESC: {}".format(avl_desc))
+        msg = """
+        AVL DESC: {}
+        """.format(avl_desc)
+        debug_print(msg, level=1, V=VERBOSITY)
         # add_imputation_nodes(g, avl_desc)
         res_g = nx.compose(res_g, g)
 
@@ -395,7 +398,10 @@ def rw_algorithm(g_list, q_code, max_steps=4, random_state=997):
     res_g = nx.DiGraph()
     avl_desc = set(q_desc)
     for g in sel_g:
-        print("AVL DESC: {}".format(avl_desc))
+        msg = """
+        AVL DESC: {}
+        """.format(avl_desc)
+        debug_print(msg, level=1, V=VERBOSITY)
         add_imputation_nodes(g, avl_desc)
         res_g = nx.compose(res_g, g)
 
@@ -426,7 +432,10 @@ def _prune(g, tgt_nodes=None):
             if out_degree == 0
             if g.nodes()[n]["kind"] == "data"
         ]
-        print(tgt_nodes)
+        msg = """
+        tgt_nodes: {}
+        """.format(tgt_nodes)
+        debug_print(msg, level=1, V=VERBOSITY)
     elif isinstance(tgt_nodes[0], (int, np.int64)):
         tgt_nodes = [
             n
