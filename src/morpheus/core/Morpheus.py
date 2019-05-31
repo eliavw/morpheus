@@ -14,7 +14,7 @@ import morpheus.algo.inference as inference
 
 from morpheus.algo.inference import get_predict
 from morpheus.algo.induction import base_induction_algorithm
-from morpheus.composition import o, x
+from morpheus.composition import CompositeModel, o, x
 from morpheus.utils.encoding import encode_attribute
 from morpheus.graph import model_to_graph
 from morpheus.visuals import show_diagram
@@ -82,9 +82,12 @@ class Morpheus(object):
         self.g_list = []
         self.i_list = []
 
+        # Query-related things
+        self.q_desc_ids = None
+        self.q_targ_ids = None
         self.q_diagram = None
         self.q_methods = []
-        self.q_predict = None
+        self.q_compose = None
 
         # Configurations
         self.sel_cfg = self._default_config(self.selection_algorithm)
@@ -148,14 +151,15 @@ class Morpheus(object):
             q_code = self._default_q_code()
 
         # Adjust data
-        q_desc_ids = np.where(q_code == DESC_ENCODING)[0].tolist()
-        q_targ_ids = np.where(q_code == TARG_ENCODING)[0].tolist()
+        self.q_desc_ids = np.where(q_code == DESC_ENCODING)[0].tolist()
+        self.q_targ_ids = np.where(q_code == TARG_ENCODING)[0].tolist()
+
         if X.shape[1] == len(q_code):
             # Assumption: User gives array with all attributes
-            X = X[:, q_desc_ids]
+            X = X[:, self.q_desc_ids]
         else:
             # Assumption: User gives array with only descriptive attributes
-            assert X.shape[1] == len(q_desc_ids)
+            assert X.shape[1] == len(self.q_desc_ids)
 
         # Make custom diagram
         self.q_diagram = self.prediction_algorithm(self.g_list, q_code, **self.prd_cfg)
@@ -164,7 +168,7 @@ class Morpheus(object):
         # Convert diagram to methods.
         try:
             self.q_methods = self.inference_algorithm(
-                self.q_diagram, q_desc_ids=q_desc_ids
+                self.q_diagram
             )
         except NetworkXUnfeasible:
             msg = """
@@ -172,10 +176,13 @@ class Morpheus(object):
             """
             warnings.warn(msg)
 
-        # Custom predict function
-        self.q_predict = get_predict(self.q_methods, q_targ_ids)
+        # Custom predict functions
+        self.q_compose = CompositeModel(self.q_diagram, self.q_methods, self.q_targ_ids)
 
-        return self.q_predict(X)
+        if X.shape[1] != len(self.q_compose.desc_ids):
+            X = X[:, self.overlapping_indices(self.q_desc_ids, self.q_compose.desc_ids)]
+
+        return self.q_compose.predict(X)
 
     def show_q_diagram(self, kind="svg", fi=False, ortho=False):
         return show_diagram(self.q_diagram, kind=kind, fi=fi, ortho=ortho)
@@ -277,6 +284,29 @@ class Morpheus(object):
     def _is_numeric(t):
         condition_01 = t == np.dtype(float)
         return condition_01
+
+    @staticmethod
+    def overlapping_indices(a, b):
+        """
+        Given an array a and b, return the indices (in a) of elements that occur in both a and b.
+
+        Parameters
+        ----------
+        a
+        b
+
+        Returns
+        -------
+
+        Examples
+        --------
+        a = [4,5,6]
+        b = [4,6,7]
+
+        overlapping_indices(a, b) = [0,2]
+
+        """
+        return np.nonzero(np.in1d(a,b))[0]
 
     # Imputer
     def _fit_imputer(self, X):

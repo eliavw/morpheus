@@ -25,6 +25,8 @@ def base_inference_algorithm(g, q_desc_ids=None):
     functions = {}
 
     if q_desc_ids is None:
+        # desc ids not provided => all attributes which are diagrammatically identified as descriptive, are assumed
+        # to be given as inputs
         q_desc_ids = list(get_ids(g, kind="desc"))
 
     for node_name in sorted_list:
